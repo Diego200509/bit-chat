@@ -25,12 +25,9 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     ? chats.find((c) => c.id === currentChatId) ?? null
     : null
 
-  // Conexión y registro del usuario
+  // Conexión: el usuario ya viene del JWT en el backend (auth en handshake)
   useEffect(() => {
-    const onConnect = () => {
-      setConnected(true)
-      socket.emit(SOCKET_EVENTS.SET_USER, { userId, userName })
-    }
+    const onConnect = () => setConnected(true)
     const onDisconnect = () => setConnected(false)
 
     socket.on('connect', onConnect)
@@ -39,7 +36,7 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
       socket.off('connect', onConnect)
       socket.off('disconnect', onDisconnect)
     }
-  }, [userId, userName])
+  }, [])
 
   // Entrar/salir de la sala del chat seleccionado
   useEffect(() => {
@@ -53,6 +50,44 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
       prevChatIdRef.current = null
     }
   }, [currentChatId])
+
+  // Historial al abrir un chat (desde MongoDB)
+  useEffect(() => {
+    const onHistory = ({
+      chatId,
+      messages,
+    }: {
+      chatId: string
+      messages: Array<{ id: string; text: string; senderId: string | null; senderName: string; timestamp: number }>
+    }) => {
+      const normalized: Message[] = messages.map((m) => ({
+        id: m.id,
+        text: m.text,
+        senderId: m.senderId ?? '',
+        senderName: m.senderName ?? 'Anónimo',
+        timestamp: m.timestamp,
+      }))
+      setChats((prev) => {
+        const existing = prev.find((c) => c.id === chatId)
+        if (!existing) return prev
+        const last = normalized[normalized.length - 1]
+        return prev.map((c) =>
+          c.id === chatId
+            ? {
+                ...c,
+                messages: normalized,
+                lastMessage: last?.text,
+                lastMessageTime: last?.timestamp,
+              }
+            : c
+        )
+      })
+    }
+    socket.on(SOCKET_EVENTS.CHAT_HISTORY, onHistory)
+    return () => {
+      socket.off(SOCKET_EVENTS.CHAT_HISTORY, onHistory)
+    }
+  }, [])
 
   // Recibir mensajes en tiempo real
   useEffect(() => {

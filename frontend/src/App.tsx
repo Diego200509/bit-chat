@@ -1,7 +1,10 @@
+import { useAuth } from './context/AuthContext'
 import { useChat } from './hooks/useChat'
+import { AuthScreen } from './components/auth'
 import { ChatList, ChatWindow } from './components/chat'
 
-function App() {
+function ChatLayout() {
+  const { user, logout } = useAuth()
   const {
     chats,
     currentChatId,
@@ -11,7 +14,7 @@ function App() {
     currentUserName,
     selectChat,
     sendMessage,
-  } = useChat()
+  } = useChat(user!.id, user!.name)
 
   return (
     <div className="h-screen flex bg-bitchat-bg text-slate-100">
@@ -20,6 +23,7 @@ function App() {
         currentChatId={currentChatId}
         onSelectChat={selectChat}
         currentUserName={currentUserName}
+        onLogout={logout}
       />
       <ChatWindow
         chat={currentChat}
@@ -33,6 +37,24 @@ function App() {
       )}
     </div>
   )
+}
+
+function App() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bitchat-bg">
+        <div className="text-bitchat-cyan">Cargando…</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <AuthScreen />
+  }
+
+  return <ChatLayout />
 }
 
 export default App

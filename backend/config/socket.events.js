@@ -12,4 +12,5 @@ module.exports = {
   // Servidor -> Cliente
   NEW_MESSAGE: 'new_message',
   USERS_ONLINE: 'users_online',
+  CHAT_HISTORY: 'chat_history',
 };

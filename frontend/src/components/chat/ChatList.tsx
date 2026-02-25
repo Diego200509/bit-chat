@@ -5,6 +5,7 @@ interface ChatListProps {
   currentChatId: string | null
   onSelectChat: (chatId: string) => void
   currentUserName?: string
+  onLogout?: () => void
 }
 
 /**
@@ -15,6 +16,7 @@ export function ChatList({
   currentChatId,
   onSelectChat,
   currentUserName = 'Yo',
+  onLogout,
 }: ChatListProps) {
   return (
     <div className="w-full md:w-[380px] flex flex-col bg-bitchat-sidebar border-r border-bitchat-border flex-shrink-0">
@@ -28,6 +30,17 @@ export function ChatList({
           </h1>
           <p className="text-xs text-slate-400 truncate">{currentUserName}</p>
         </div>
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-bitchat-panel transition-colors"
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+          >
+            <LogoutIcon />
+          </button>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto">
@@ -76,5 +89,13 @@ export function ChatList({
         )}
       </div>
     </div>
+  )
+}
+
+function LogoutIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+      <path fillRule="evenodd" d="M7.5 3.75A1.5 1.5 0 0 0 6 5.25v13.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V15a.75.75 0 0 1 1.5 0v3.75a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V5.25a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3V9A.75.75 0 0 1 15 9V5.25a1.5 1.5 0 0 0-1.5-1.5h-6ZM5.25 12a.75.75 0 0 1 .75-.75h7.19L13.47 9.53a.75.75 0 0 1 1.06-1.06l3 3a.75.75 0 0 1 0 1.06l-3 3a.75.75 0 1 1-1.06-1.06l2.22-2.22H6a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+    </svg>
   )
 }

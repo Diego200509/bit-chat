@@ -3,6 +3,7 @@ const { Server } = require('socket.io');
 const config = require('./config');
 const app = require('./app');
 const { attachSocket } = require('./socket');
+const { connectDb } = require('./db/connect');
 
 const server = http.createServer(app);
 
@@ -12,6 +13,13 @@ const io = new Server(server, {
 
 attachSocket(io);
 
-server.listen(config.port, () => {
-  console.log(`BitChat backend en http://localhost:${config.port}`);
-});
+connectDb()
+  .then(() => {
+    server.listen(config.port, () => {
+      console.log(`BitChat backend en http://localhost:${config.port}`);
+    });
+  })
+  .catch((err) => {
+    console.error('No se pudo iniciar el servidor:', err);
+    process.exit(1);
+  });
