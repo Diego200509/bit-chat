@@ -1,12 +1,11 @@
 import { useRef, useEffect } from 'react'
-import type { Chat } from '../types/chat'
+import type { Chat } from '../../types/chat'
 import { Message } from './Message'
 import { MessageInput } from './MessageInput'
 
 interface ChatWindowProps {
   chat: Chat | null
   onSendMessage: (text: string) => void
-  /** Id del usuario actual para marcar isOwn en los mensajes */
   currentUserId: string
 }
 
@@ -42,7 +41,6 @@ export function ChatWindow({
 
   return (
     <div className="flex-1 flex flex-col bg-bitchat-bg min-w-0">
-      {/* Cabecera del chat */}
       <header className="flex items-center gap-3 p-4 border-b border-bitchat-border bg-bitchat-panel flex-shrink-0">
         <div className="w-10 h-10 rounded-full bg-bitchat-blue-dark flex items-center justify-center text-bitchat-cyan font-semibold">
           {chat.name.charAt(0).toUpperCase()}
@@ -53,7 +51,6 @@ export function ChatWindow({
         </div>
       </header>
 
-      {/* Área de mensajes */}
       <div className="flex-1 overflow-y-auto p-4">
         {messagesWithOwn.map((message) => (
           <Message key={message.id} message={message} />
@@ -61,7 +58,6 @@ export function ChatWindow({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input de envío */}
       <MessageInput onSend={onSendMessage} />
     </div>
   )

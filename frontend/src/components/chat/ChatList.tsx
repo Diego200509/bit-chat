@@ -1,10 +1,9 @@
-import type { Chat } from '../types/chat'
+import type { Chat } from '../../types/chat'
 
 interface ChatListProps {
   chats: Chat[]
   currentChatId: string | null
   onSelectChat: (chatId: string) => void
-  /** Nombre del usuario actual (para el header del sidebar) */
   currentUserName?: string
 }
 
@@ -19,7 +18,6 @@ export function ChatList({
 }: ChatListProps) {
   return (
     <div className="w-full md:w-[380px] flex flex-col bg-bitchat-sidebar border-r border-bitchat-border flex-shrink-0">
-      {/* Header del sidebar con branding BitChat */}
       <header className="p-4 border-b border-bitchat-border flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-bitchat-cyan flex items-center justify-center text-bitchat-blue-dark font-bold text-lg">
           b
@@ -32,7 +30,6 @@ export function ChatList({
         </div>
       </header>
 
-      {/* Lista de chats */}
       <div className="flex-1 overflow-y-auto">
         {chats.length === 0 ? (
           <div className="p-6 text-center text-slate-500 text-sm">
