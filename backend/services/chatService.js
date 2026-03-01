@@ -59,13 +59,16 @@ async function saveMessage(chatId, senderId, senderName, opts = {}) {
 
 function messageToPayload(msg, resolvedChatId, senderDisplayName) {
   const senderId = msg.sender ? msg.sender.toString() : null;
+  const type = (msg.type && ['text', 'image', 'sticker', 'emoji'].includes(msg.type)) ? msg.type : 'text';
+  const stickerUrl = msg.stickerUrl != null && String(msg.stickerUrl).trim() ? String(msg.stickerUrl).trim() : null;
+  const imageUrl = msg.imageUrl != null && String(msg.imageUrl).trim() ? String(msg.imageUrl).trim() : null;
   return {
     id: msg._id.toString(),
     chatId: resolvedChatId,
     text: msg.text || '',
-    type: msg.type || 'text',
-    imageUrl: msg.imageUrl || null,
-    stickerUrl: msg.stickerUrl || null,
+    type,
+    imageUrl,
+    stickerUrl,
     reactions: (msg.reactions || []).map((r) => ({ userId: r.userId.toString(), emoji: r.emoji })),
     senderId,
     senderName: senderDisplayName ?? msg.senderName ?? 'Anónimo',

@@ -5,6 +5,26 @@ import { env } from '../../config/env'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😄', '😮', '😢', '👎']
 
+function StickerContent({ url, fullUrl }: { url: string | null | undefined; fullUrl: (p: string) => string }) {
+  const [failed, setFailed] = useState(false)
+  const showImg = url && !failed
+  return (
+    <span className="inline-block flex items-center justify-center overflow-visible">
+      {showImg ? (
+        <img
+          key={url}
+          src={fullUrl(url)}
+          alt=""
+          className="w-[100px] h-[100px] object-contain flex-shrink-0"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="text-5xl" title="Sticker">🖼️</span>
+      )}
+    </span>
+  )
+}
+
 interface MessageProps {
   message: MessageType
   currentUserId?: string
@@ -61,7 +81,9 @@ export function Message({ message, currentUserId, onReaction }: MessageProps) {
     <div className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} mb-2 group overflow-visible`}>
       <div className="relative max-w-[85%] sm:max-w-[75%] overflow-visible">
         <div
-          className={`rounded-2xl px-4 py-2 ${
+          className={`rounded-2xl overflow-visible ${
+            type === 'sticker' ? 'p-2' : 'px-4 py-2'
+          } ${
             isOwn
               ? 'rounded-br-md bg-bitchat-cyan text-bitchat-blue-dark'
               : 'rounded-bl-md bg-bitchat-received text-slate-200'
@@ -78,17 +100,7 @@ export function Message({ message, currentUserId, onReaction }: MessageProps) {
             </a>
           )}
           {type === 'sticker' && (
-            <span className="inline-block">
-              {message.stickerUrl ? (
-                <img
-                  src={fullUrl(message.stickerUrl)}
-                  alt=""
-                  className="max-w-[120px] max-h-[120px] object-contain block"
-                />
-              ) : (
-                <span className="text-4xl">🖼</span>
-              )}
-            </span>
+            <StickerContent url={message.stickerUrl} fullUrl={fullUrl} />
           )}
           {(type === 'text' || type === 'emoji' || (type === 'image' && message.text)) && (
             <p className="text-sm break-words whitespace-pre-wrap">{message.text || ''}</p>
