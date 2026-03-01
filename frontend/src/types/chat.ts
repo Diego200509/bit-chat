@@ -20,6 +20,9 @@ export interface Message {
   type?: 'text' | 'image' | 'sticker' | 'emoji'
   imageUrl?: string | null
   stickerUrl?: string | null
+  editedAt?: number | null
+  readBy?: string[]
+  pinned?: boolean
   reactions?: MessageReaction[]
   senderId: string
   senderName: string

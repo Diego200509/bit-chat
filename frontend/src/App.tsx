@@ -30,6 +30,9 @@ function ChatLayout() {
     sendImage,
     sendSticker,
     addReaction,
+    editMessage,
+    pinMessage,
+    unpinMessage,
   } = useChat(user!.id, displayName)
 
   const [mobileView, setMobileView] = useState<MobileView>('list')
@@ -117,6 +120,9 @@ function ChatLayout() {
           onSendImage={sendImage}
           onSendSticker={sendSticker}
           onReaction={addReaction}
+          onEditMessage={editMessage}
+          onPinMessage={pinMessage}
+          onUnpinMessage={unpinMessage}
           currentUserId={currentUserId}
           onBack={handleBackToList}
           onBlockUser={handleBlockUser}

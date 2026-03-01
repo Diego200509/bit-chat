@@ -9,6 +9,9 @@ interface ChatWindowProps {
   onSendImage?: (url: string) => void
   onSendSticker?: (url: string) => void
   onReaction?: (messageId: string, emoji: string) => void
+  onEditMessage?: (messageId: string, text: string) => void
+  onPinMessage?: (messageId: string) => void
+  onUnpinMessage?: (messageId: string) => void
   currentUserId: string
   onBack?: () => void
   onBlockUser?: (userId: string) => void
@@ -25,6 +28,9 @@ export function ChatWindow({
   onSendImage,
   onSendSticker,
   onReaction,
+  onEditMessage,
+  onPinMessage,
+  onUnpinMessage,
   currentUserId,
   onBack,
   onBlockUser,
@@ -84,14 +90,41 @@ export function ChatWindow({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain">
-        {messagesWithOwn.map((message) => (
-          <Message
-            key={message.id}
-            message={message}
-            currentUserId={currentUserId}
-            onReaction={onReaction}
-          />
-        ))}
+        {(() => {
+          const pinned = messagesWithOwn.filter((m) => m.pinned)
+          const rest = messagesWithOwn.filter((m) => !m.pinned)
+          return (
+            <>
+              {pinned.length > 0 && (
+                <div className="mb-3 rounded-lg bg-bitchat-sidebar/60 border border-bitchat-border p-2">
+                  <p className="text-xs font-medium text-slate-400 mb-2">Mensaje fijado</p>
+                  {pinned.map((message) => (
+                    <Message
+                      key={message.id}
+                      message={message}
+                      currentUserId={currentUserId}
+                      onReaction={onReaction}
+                      onEditMessage={onEditMessage}
+                      onPinMessage={onPinMessage}
+                      onUnpinMessage={onUnpinMessage}
+                    />
+                  ))}
+                </div>
+              )}
+              {rest.map((message) => (
+                <Message
+                  key={message.id}
+                  message={message}
+                  currentUserId={currentUserId}
+                  onReaction={onReaction}
+                  onEditMessage={onEditMessage}
+                  onPinMessage={onPinMessage}
+                  onUnpinMessage={onUnpinMessage}
+                />
+              ))}
+            </>
+          )
+        })()}
         <div ref={messagesEndRef} />
       </div>
 

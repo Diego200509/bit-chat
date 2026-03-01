@@ -8,7 +8,7 @@ import type { SocketMessage } from '../types/socket'
 const DEFAULT_USER_ID = 'user-1'
 const DEFAULT_USER_NAME = 'Yo'
 
-function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean }): Chat {
+function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean; unread?: number }): Chat {
   return {
     id: item.id,
     name: item.name,
@@ -19,6 +19,7 @@ function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean }): Chat 
     image: item.image,
     lastMessage: item.lastMessage,
     lastMessageTime: item.lastMessageTime ?? undefined,
+    unread: item.unread ?? 0,
     messages: [],
   }
 }
@@ -33,6 +34,8 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
   const [chatsLoading, setChatsLoading] = useState(true)
   const [connected, setConnected] = useState(socket.connected)
   const prevChatIdRef = useRef<string | null>(null)
+  const currentChatIdRef = useRef<string | null>(currentChatId)
+  currentChatIdRef.current = currentChatId
 
   const currentChat = currentChatId
     ? chats.find((c) => c.id === currentChatId) ?? null
@@ -74,11 +77,15 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     }
   }, [])
 
-  // Entrar/salir de la sala del chat seleccionado
+  // Unirse a las salas de todos los chats para recibir NEW_MESSAGE en tiempo real (lista + unread)
   useEffect(() => {
-    if (prevChatIdRef.current) {
-      socket.emit(SOCKET_EVENTS.LEAVE_CHAT, prevChatIdRef.current)
-    }
+    if (chats.length === 0) return
+    const chatIds = chats.map((c) => c.id)
+    socket.emit(SOCKET_EVENTS.JOIN_CHAT_ROOMS, chatIds)
+  }, [chats])
+
+  // Al abrir un chat: pedir historial y marcar como leído
+  useEffect(() => {
     if (currentChatId) {
       socket.emit(SOCKET_EVENTS.JOIN_CHAT, currentChatId)
       prevChatIdRef.current = currentChatId
@@ -93,6 +100,9 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
         type?: string
         imageUrl?: string | null
         stickerUrl?: string | null
+        editedAt?: number | null
+        readBy?: string[]
+        pinned?: boolean
         reactions?: Array<{ userId: string; emoji: string }>
         senderId?: string | null
         senderName?: string
@@ -104,6 +114,9 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
       type: (m.type as Message['type']) || 'text',
       imageUrl: m.imageUrl ?? null,
       stickerUrl: m.stickerUrl ?? null,
+      editedAt: m.editedAt ?? null,
+      readBy: m.readBy ?? [],
+      pinned: m.pinned ?? false,
       reactions: m.reactions ?? [],
       senderId: m.senderId ?? '',
       senderName: m.senderName ?? 'Anónimo',
@@ -124,6 +137,9 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
         type?: string
         imageUrl?: string | null
         stickerUrl?: string | null
+        editedAt?: number | null
+        readBy?: string[]
+        pinned?: boolean
         reactions?: Array<{ userId: string; emoji: string }>
         senderId: string | null
         senderName: string
@@ -131,17 +147,21 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
       }>
     }) => {
       const normalized: Message[] = messages.map((m) => normalizeMessage(m))
+      const last = normalized[normalized.length - 1]
+      const lastPreview = last
+        ? (last.text?.trim() || (last.type === 'image' ? 'Imagen' : last.type === 'sticker' ? 'Sticker' : ''))
+        : ''
       setChats((prev) => {
         const existing = prev.find((c) => c.id === chatId)
         if (!existing) return prev
-        const last = normalized[normalized.length - 1]
         return prev.map((c) =>
           c.id === chatId
             ? {
                 ...c,
                 messages: normalized,
-                lastMessage: last?.text,
-                lastMessageTime: last?.timestamp,
+                lastMessage: lastPreview || c.lastMessage,
+                lastMessageTime: last?.timestamp ?? c.lastMessageTime,
+                unread: 0,
               }
             : c
         )
@@ -153,31 +173,49 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     }
   }, [])
 
-  // Recibir mensajes en tiempo real
+  // Recibir mensajes en tiempo real: actualizar lista (lastMessage, unread) y marcar visto si estás en el chat
   useEffect(() => {
-    const onMessage = (msg: SocketMessage & { type?: string; imageUrl?: string | null; stickerUrl?: string | null; reactions?: Array<{ userId: string; emoji: string }> }) => {
+    const onMessage = (msg: SocketMessage & { type?: string; imageUrl?: string | null; stickerUrl?: string | null; editedAt?: number | null; readBy?: string[]; pinned?: boolean; reactions?: Array<{ userId: string; emoji: string }> }) => {
       const message: Message = normalizeMessage({
         id: msg.id,
         text: msg.text,
         type: msg.type,
         imageUrl: msg.imageUrl,
         stickerUrl: msg.stickerUrl,
+        editedAt: msg.editedAt,
+        readBy: msg.readBy,
+        pinned: msg.pinned,
         reactions: msg.reactions,
         senderId: msg.senderId,
         senderName: msg.senderName,
         timestamp: msg.timestamp,
       })
+      const lastMessagePreview =
+        (msg.text && msg.text.trim()) ||
+        (msg.type === 'image' ? 'Imagen' : msg.type === 'sticker' ? 'Sticker' : '')
+      const isInThisChat = currentChatIdRef.current === msg.chatId
+      if (isInThisChat) {
+        socket.emit(SOCKET_EVENTS.MARK_CHAT_READ, msg.chatId)
+      }
       setChats((prev) => {
         const existing = prev.find((c) => c.id === msg.chatId)
+        const unreadDelta = isInThisChat ? 0 : 1
         if (existing) {
-          if (existing.messages.some((m) => m.id === msg.id)) return prev
+          if (existing.messages.some((m) => m.id === msg.id)) {
+            return prev.map((c) =>
+              c.id === msg.chatId
+                ? { ...c, lastMessage: lastMessagePreview || c.lastMessage, lastMessageTime: msg.timestamp }
+                : c
+            )
+          }
           return prev.map((c) =>
             c.id === msg.chatId
               ? {
                   ...c,
                   messages: [...c.messages, message],
-                  lastMessage: msg.text,
+                  lastMessage: lastMessagePreview || c.lastMessage,
                   lastMessageTime: msg.timestamp,
+                  unread: isInThisChat ? 0 : (c.unread ?? 0) + 1,
                 }
               : c
           )
@@ -185,8 +223,9 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
         const newChat: Chat = {
           id: msg.chatId,
           name: msg.senderId === userId ? userName : msg.senderName,
-          lastMessage: msg.text,
+          lastMessage: lastMessagePreview,
           lastMessageTime: msg.timestamp,
+          unread: unreadDelta,
           messages: [message],
         }
         return [newChat, ...prev]
@@ -198,24 +237,35 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     }
   }, [userId, userName])
 
-  // Actualizar reacciones cuando alguien reacciona
+  // Actualizar mensaje (reacciones, edición, fijado, leído)
   useEffect(() => {
     const onUpdated = (updated: {
       id: string
       chatId: string
+      text?: string
+      editedAt?: number | null
+      readBy?: string[]
+      pinned?: boolean
       reactions?: Array<{ userId: string; emoji: string }>
     }) => {
       setChats((prev) =>
-        prev.map((c) =>
-          c.id === updated.chatId
-            ? {
-                ...c,
-                messages: c.messages.map((m) =>
-                  m.id === updated.id ? { ...m, reactions: updated.reactions ?? m.reactions ?? [] } : m
-                ),
-              }
-            : c
-        )
+        prev.map((c) => {
+          if (c.id !== updated.chatId) return c
+          const next = c.messages.map((m) =>
+            m.id === updated.id
+              ? {
+                  ...m,
+                  ...(updated.text !== undefined && { text: updated.text }),
+                  ...(updated.editedAt !== undefined && { editedAt: updated.editedAt }),
+                  ...(updated.readBy !== undefined && { readBy: updated.readBy }),
+                  ...(updated.pinned !== undefined && { pinned: updated.pinned }),
+                  ...(updated.reactions !== undefined && { reactions: updated.reactions }),
+                }
+              : m
+          )
+          next.sort((a, b) => (a.pinned ? 0 : 1) - (b.pinned ? 0 : 1) || (a.timestamp - b.timestamp))
+          return { ...c, messages: next }
+        })
       )
     }
     socket.on(SOCKET_EVENTS.MESSAGE_UPDATED, onUpdated)
@@ -225,6 +275,9 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
   }, [])
 
   const selectChat = useCallback((chatId: string | null) => {
+    if (chatId) {
+      setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, unread: 0 } : c)))
+    }
     setCurrentChatId(chatId)
   }, [])
 
@@ -360,6 +413,30 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     socket.emit(SOCKET_EVENTS.REACT_TO_MESSAGE, { messageId, chatId: currentChatId, emoji })
   }, [currentChatId])
 
+  const editMessage = useCallback(
+    (messageId: string, text: string) => {
+      if (!currentChatId) return
+      socket.emit(SOCKET_EVENTS.EDIT_MESSAGE, { messageId, chatId: currentChatId, text })
+    },
+    [currentChatId]
+  )
+
+  const pinMessage = useCallback(
+    (messageId: string) => {
+      if (!currentChatId) return
+      socket.emit(SOCKET_EVENTS.PIN_MESSAGE, { messageId, chatId: currentChatId })
+    },
+    [currentChatId]
+  )
+
+  const unpinMessage = useCallback(
+    (messageId: string) => {
+      if (!currentChatId) return
+      socket.emit(SOCKET_EVENTS.UNPIN_MESSAGE, { messageId, chatId: currentChatId })
+    },
+    [currentChatId]
+  )
+
   return {
     chats,
     currentChatId,
@@ -373,6 +450,9 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     sendImage,
     sendSticker,
     addReaction,
+    editMessage,
+    pinMessage,
+    unpinMessage,
     openDirectChat,
     removeChat,
     refreshChats,

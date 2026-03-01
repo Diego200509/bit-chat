@@ -9,13 +9,14 @@ const messageSchema = new mongoose.Schema(
   {
     chat: { type: mongoose.Schema.Types.ObjectId, ref: 'Chat', required: true },
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    senderIdFallback: { type: String, default: null }, // cuando sender es null (ej. id de cliente)
     senderName: { type: String, default: null },
     text: { type: String, default: '' },
     type: { type: String, enum: ['text', 'image', 'sticker', 'emoji'], default: 'text' },
     imageUrl: { type: String, default: null },
     stickerUrl: { type: String, default: null },
     editedAt: { type: Date, default: null },
-    readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    readBy: [{ type: mongoose.Schema.Types.Mixed }], // ObjectId o string (para usuarios sin ObjectId)
     reactions: [reactionSchema],
     pinned: { type: Boolean, default: false },
     pinnedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

@@ -43,9 +43,9 @@
 ---
 
 ## Fase 5 – Edición y estado
-- [ ] **Editar mensaje**: PATCH mensaje, `Message.editedAt`, evento socket
-- [ ] **Mostrar mensaje leído**: `Message.readBy[]`, marcar al abrir chat, indicador en UI
-- [ ] **Fijar un mensaje**: `Message.pinned`, mostrar arriba en el chat
+- [x] **Editar mensaje**: PATCH mensaje, `Message.editedAt`, evento socket
+- [x] **Mostrar mensaje leído**: `Message.readBy[]`, marcar al abrir chat, indicador en UI
+- [x] **Fijar un mensaje**: `Message.pinned`, mostrar arriba en el chat
 
 ---
 

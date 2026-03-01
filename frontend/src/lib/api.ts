@@ -188,6 +188,31 @@ export async function unblockUser(userId: string): Promise<void> {
   if (!res.ok) throw new Error('Error al desbloquear')
 }
 
+export async function editMessage(messageId: string, text: string): Promise<unknown> {
+  const res = await fetch(`${env.apiUrl}/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ text }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error al editar')
+  return data
+}
+
+export async function pinMessage(messageId: string): Promise<{ pinned: unknown; unpinned?: unknown }> {
+  const res = await fetch(`${env.apiUrl}/messages/${messageId}/pin`, { method: 'POST', headers: authHeaders() })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error al fijar')
+  return data
+}
+
+export async function unpinMessage(messageId: string): Promise<unknown> {
+  const res = await fetch(`${env.apiUrl}/messages/${messageId}/unpin`, { method: 'POST', headers: authHeaders() })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error al desfijar')
+  return data
+}
+
 /** Sube una imagen. Devuelve la URL pública (ej. /uploads/xxx). */
 export async function uploadImage(file: File): Promise<string> {
   const form = new FormData()

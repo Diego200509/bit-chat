@@ -6,9 +6,14 @@ export const SOCKET_EVENTS = {
   // Cliente -> Servidor
   SET_USER: 'set_user',
   JOIN_CHAT: 'join_chat',
+  JOIN_CHAT_ROOMS: 'join_chat_rooms',
   LEAVE_CHAT: 'leave_chat',
   SEND_MESSAGE: 'send_message',
   REACT_TO_MESSAGE: 'react_to_message',
+  EDIT_MESSAGE: 'edit_message',
+  PIN_MESSAGE: 'pin_message',
+  UNPIN_MESSAGE: 'unpin_message',
+  MARK_CHAT_READ: 'mark_chat_read',
 
   // Servidor -> Cliente
   NEW_MESSAGE: 'new_message',

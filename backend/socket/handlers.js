@@ -1,5 +1,14 @@
 const EVENTS = require('../config/socket.events');
-const { getOrCreateChat, saveMessage, getMessageHistory, toggleReaction } = require('../services/chatService');
+const {
+  getOrCreateChat,
+  saveMessage,
+  getMessageHistory,
+  toggleReaction,
+  editMessage,
+  markChatAsRead,
+  pinMessage,
+  unpinMessage,
+} = require('../services/chatService');
 const { User } = require('../models');
 
 /** Usuarios conectados: socketId -> { userId, userName } */
@@ -52,13 +61,41 @@ function registerSocketHandlers(io) {
         const currentUserId = socket.data.userId || null;
         const history = await getMessageHistory(chatId, 100, currentUserId);
         socket.emit(EVENTS.CHAT_HISTORY, { chatId, messages: history });
+        if (currentUserId) {
+          await markChatAsRead(chatId, currentUserId);
+          const roomName = `chat:${chatId}`;
+          const updatedList = await getMessageHistory(chatId, 200, null);
+          for (const payload of updatedList) {
+            io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, { ...payload, chatId });
+          }
+        }
       } catch (err) {
         console.error('Error loading chat history:', err);
       }
     });
 
+    socket.on(EVENTS.JOIN_CHAT_ROOMS, (chatIds) => {
+      const ids = Array.isArray(chatIds) ? chatIds : [chatIds];
+      ids.forEach((id) => id && socket.join(`chat:${id}`));
+    });
+
     socket.on(EVENTS.LEAVE_CHAT, (chatId) => {
       socket.leave(`chat:${chatId}`);
+    });
+
+    socket.on(EVENTS.MARK_CHAT_READ, async (chatId) => {
+      const currentUserId = socket.data.userId || null;
+      if (!chatId || !currentUserId) return;
+      try {
+        await markChatAsRead(chatId, currentUserId);
+        const roomName = `chat:${chatId}`;
+        const updatedList = await getMessageHistory(chatId, 200, null);
+        for (const payload of updatedList) {
+          io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, { ...payload, chatId });
+        }
+      } catch (err) {
+        console.error('Error marking chat as read:', err);
+      }
     });
 
     socket.on(EVENTS.SEND_MESSAGE, async (payload) => {
@@ -131,6 +168,52 @@ function registerSocketHandlers(io) {
         }
       } catch (err) {
         console.error('Error toggling reaction:', err);
+      }
+    });
+
+    socket.on(EVENTS.EDIT_MESSAGE, async (payload) => {
+      const { messageId, chatId, text } = payload;
+      const userId = socket.data.userId;
+      if (!userId || !messageId) return;
+      try {
+        const updated = await editMessage(messageId, userId, typeof text === 'string' ? text : '');
+        if (updated) {
+          const roomName = `chat:${updated.chatId || chatId}`;
+          io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, updated);
+        }
+      } catch (err) {
+        console.error('Error editing message:', err);
+      }
+    });
+
+    socket.on(EVENTS.PIN_MESSAGE, async (payload) => {
+      const { messageId, chatId } = payload;
+      const userId = socket.data.userId;
+      if (!userId || !messageId) return;
+      try {
+        const result = await pinMessage(messageId, userId);
+        if (result) {
+          const roomName = `chat:${result.pinned.chatId || chatId}`;
+          io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, result.pinned);
+          if (result.unpinned) io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, result.unpinned);
+        }
+      } catch (err) {
+        console.error('Error pinning message:', err);
+      }
+    });
+
+    socket.on(EVENTS.UNPIN_MESSAGE, async (payload) => {
+      const { messageId, chatId } = payload;
+      const userId = socket.data.userId;
+      if (!userId || !messageId) return;
+      try {
+        const updated = await unpinMessage(messageId, userId);
+        if (updated) {
+          const roomName = `chat:${updated.chatId || chatId}`;
+          io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, updated);
+        }
+      } catch (err) {
+        console.error('Error unpinning message:', err);
       }
     });
 

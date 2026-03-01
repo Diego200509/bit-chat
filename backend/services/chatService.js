@@ -46,6 +46,7 @@ async function saveMessage(chatId, senderId, senderName, opts = {}) {
   const msg = await Message.create({
     chat: chat._id,
     sender: senderObjectId || null,
+    senderIdFallback: senderObjectId ? null : String(senderId),
     senderName: senderObjectId ? null : name,
     text: text || '',
     type: ['text', 'image', 'sticker', 'emoji'].includes(type) ? type : 'text',
@@ -57,8 +58,15 @@ async function saveMessage(chatId, senderId, senderName, opts = {}) {
   return messageToPayload(msg, resolvedChatId, name);
 }
 
-function messageToPayload(msg, resolvedChatId, senderDisplayName) {
-  const senderId = msg.sender ? msg.sender.toString() : null;
+function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallback = null) {
+  let senderId = null;
+  if (msg.sender) {
+    senderId = typeof msg.sender === 'object' && msg.sender._id != null
+      ? msg.sender._id.toString()
+      : msg.sender.toString();
+  } else {
+    senderId = msg.senderIdFallback ?? senderIdFallback ?? null;
+  }
   const type = (msg.type && ['text', 'image', 'sticker', 'emoji'].includes(msg.type)) ? msg.type : 'text';
   const stickerUrl = msg.stickerUrl != null && String(msg.stickerUrl).trim() ? String(msg.stickerUrl).trim() : null;
   const imageUrl = msg.imageUrl != null && String(msg.imageUrl).trim() ? String(msg.imageUrl).trim() : null;
@@ -69,6 +77,9 @@ function messageToPayload(msg, resolvedChatId, senderDisplayName) {
     type,
     imageUrl,
     stickerUrl,
+    editedAt: msg.editedAt ? new Date(msg.editedAt).getTime() : null,
+    readBy: (msg.readBy || []).map((id) => id.toString()),
+    pinned: !!msg.pinned,
     reactions: (msg.reactions || []).map((r) => ({ userId: r.userId.toString(), emoji: r.emoji })),
     senderId,
     senderName: senderDisplayName ?? msg.senderName ?? 'Anónimo',
@@ -101,18 +112,10 @@ async function getMessageHistory(chatId, limit = 100, currentUserId = null) {
   }
 
   const resolvedChatId = (chatId === 'chat-1' || chatId === 'general') ? chatId : chat._id.toString();
-  return messages.map((m) => ({
-    id: m._id.toString(),
-    chatId: resolvedChatId,
-    text: m.text || '',
-    type: m.type || 'text',
-    imageUrl: m.imageUrl || null,
-    stickerUrl: m.stickerUrl || null,
-    reactions: (m.reactions || []).map((r) => ({ userId: r.userId.toString(), emoji: r.emoji })),
-    senderId: m.sender ? m.sender._id.toString() : null,
-    senderName: m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'),
-    timestamp: new Date(m.createdAt).getTime(),
-  }));
+  const getSenderName = (m) => (m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'));
+  const list = messages.map((m) => messageToPayload(m, resolvedChatId, getSenderName(m)));
+  list.sort((a, b) => (a.pinned ? 0 : 1) - (b.pinned ? 0 : 1) || (a.timestamp - b.timestamp));
+  return list;
 }
 
 /**
@@ -253,4 +256,110 @@ async function toggleReaction(messageId, userId, emoji) {
   return messageToPayload(msg, resolvedChatId, senderName);
 }
 
-module.exports = { getOrCreateChat, getOrCreateDirectChat, getChatsForUser, createGroupChat, saveMessage, getMessageHistory, toggleReaction };
+/**
+ * Edita el texto de un mensaje. Solo el autor, solo tipo text.
+ */
+async function editMessage(messageId, userId, text) {
+  if (!messageId || !userId || typeof text !== 'string') return null;
+  const msg = await Message.findById(messageId);
+  if (!msg) return null;
+  const senderId = msg.sender ? msg.sender.toString() : null;
+  if (senderId !== userId || msg.type !== 'text') return null;
+  msg.text = text.trim();
+  msg.editedAt = new Date();
+  await msg.save();
+  const resolvedChatId = msg.chat.toString();
+  let senderName = msg.senderName || 'Anónimo';
+  if (msg.sender) {
+    const u = await User.findById(msg.sender).select('name nickname').lean();
+    senderName = u ? (u.nickname?.trim() || u.name) : senderName;
+  }
+  return messageToPayload(msg, resolvedChatId, senderName);
+}
+
+/**
+ * Marca todos los mensajes del chat como leídos por el usuario.
+ */
+async function markChatAsRead(chatId, userId) {
+  if (!chatId || !userId) return;
+  const chat = await getOrCreateChat(chatId);
+  if (!chat) return;
+  const idStr = String(userId);
+  const readByValue =
+    mongoose.Types.ObjectId.isValid(idStr) && idStr.length === 24
+      ? new mongoose.Types.ObjectId(idStr)
+      : idStr;
+  await Message.updateMany(
+    { chat: chat._id },
+    { $addToSet: { readBy: readByValue } }
+  );
+}
+
+/**
+ * Fija un mensaje (solo uno por chat: desfija el anterior).
+ * Devuelve { pinned, unpinned } para emitir ambos al cliente.
+ */
+async function pinMessage(messageId, userId) {
+  if (!messageId || !userId) return null;
+  const msg = await Message.findById(messageId);
+  if (!msg) return null;
+  const chatId = msg.chat.toString();
+  const previous = await Message.findOne({ chat: msg.chat, pinned: true, _id: { $ne: msg._id } });
+  let unpinnedPayload = null;
+  if (previous) {
+    previous.pinned = false;
+    previous.pinnedBy = null;
+    await previous.save();
+    let prevSenderName = previous.senderName || 'Anónimo';
+    if (previous.sender) {
+      const u = await User.findById(previous.sender).select('name nickname').lean();
+      prevSenderName = u ? (u.nickname?.trim() || u.name) : prevSenderName;
+    }
+    unpinnedPayload = messageToPayload(previous, chatId, prevSenderName);
+  }
+  await Message.updateMany({ chat: msg.chat, _id: { $ne: msg._id } }, { $set: { pinned: false, pinnedBy: null } });
+  msg.pinned = true;
+  msg.pinnedBy = new mongoose.Types.ObjectId(userId);
+  await msg.save();
+  let senderName = msg.senderName || 'Anónimo';
+  if (msg.sender) {
+    const u = await User.findById(msg.sender).select('name nickname').lean();
+    senderName = u ? (u.nickname?.trim() || u.name) : senderName;
+  }
+  const pinnedPayload = messageToPayload(msg, chatId, senderName);
+  return { pinned: pinnedPayload, unpinned: unpinnedPayload };
+}
+
+/**
+ * Desfija un mensaje.
+ */
+async function unpinMessage(messageId, userId) {
+  if (!messageId || !userId) return null;
+  const msg = await Message.findById(messageId);
+  if (!msg) return null;
+  if (!msg.pinned) return messageToPayload(msg, msg.chat.toString(), msg.senderName || 'Anónimo');
+  msg.pinned = false;
+  msg.pinnedBy = null;
+  await msg.save();
+  const resolvedChatId = msg.chat.toString();
+  let senderName = msg.senderName || 'Anónimo';
+  if (msg.sender) {
+    const u = await User.findById(msg.sender).select('name nickname').lean();
+    senderName = u ? (u.nickname?.trim() || u.name) : senderName;
+  }
+  return messageToPayload(msg, resolvedChatId, senderName);
+}
+
+module.exports = {
+  getOrCreateChat,
+  getOrCreateDirectChat,
+  getChatsForUser,
+  createGroupChat,
+  saveMessage,
+  getMessageHistory,
+  toggleReaction,
+  editMessage,
+  markChatAsRead,
+  pinMessage,
+  unpinMessage,
+};

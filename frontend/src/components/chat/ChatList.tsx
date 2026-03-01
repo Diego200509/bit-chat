@@ -1,6 +1,51 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import type { Chat } from '../../types/chat'
 import { CreateGroupModal } from './CreateGroupModal'
+
+function LastMessagePreview({ text }: { text: string }) {
+  const ref = useRef<HTMLParagraphElement>(null)
+  const [isTruncated, setIsTruncated] = useState(false)
+
+  const checkTruncated = () => {
+    const el = ref.current
+    if (!el) return
+    setIsTruncated(el.scrollWidth > el.clientWidth)
+  }
+
+  useLayoutEffect(() => {
+    checkTruncated()
+  }, [text])
+
+  useEffect(() => {
+    window.addEventListener('resize', checkTruncated)
+    return () => window.removeEventListener('resize', checkTruncated)
+  }, [])
+
+  const preview = (
+    <p
+      ref={ref}
+      className="text-sm text-slate-500 truncate max-w-[180px] sm:max-w-[220px]"
+    >
+      {text}
+    </p>
+  )
+
+  if (!isTruncated) return preview
+
+  return (
+    <div className="group/preview relative">
+      {preview}
+      <div
+        className="pointer-events-none invisible absolute bottom-full left-0 z-30 mb-1 max-h-40 w-72 overflow-y-auto rounded-lg border border-bitchat-border bg-bitchat-sidebar px-3 py-2 shadow-xl group-hover/preview:visible"
+        role="tooltip"
+      >
+        <p className="whitespace-pre-wrap break-words text-sm text-slate-200">
+          {text}
+        </p>
+      </div>
+    </div>
+  )
+}
 
 interface ChatListProps {
   chats: Chat[]
@@ -77,10 +122,10 @@ export function ChatList({
             <div className="flex-1 min-w-0">
               <p className="font-medium text-slate-100 truncate">{chat.name}</p>
               {chat.lastMessage && (
-                <p className="text-sm text-slate-500 truncate">{chat.lastMessage}</p>
+                <LastMessagePreview text={chat.lastMessage} />
               )}
             </div>
-            {chat.unread && chat.unread > 0 && (
+            {chat.unread != null && chat.unread > 0 && (
               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-bitchat-cyan text-bitchat-blue-dark text-xs font-bold flex items-center justify-center">
                 {chat.unread}
               </span>
