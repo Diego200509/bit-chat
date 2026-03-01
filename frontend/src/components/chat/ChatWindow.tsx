@@ -6,13 +6,13 @@ import { MessageInput } from './MessageInput'
 interface ChatWindowProps {
   chat: Chat | null
   onSendMessage: (text: string) => void
+  onSendImage?: (url: string) => void
+  onSendSticker?: (url: string) => void
+  onReaction?: (messageId: string, emoji: string) => void
   currentUserId: string
   onBack?: () => void
-  /** En chat directo: bloquear al otro usuario */
   onBlockUser?: (userId: string) => void
-  /** En chat directo: desbloquear al otro usuario */
   onUnblockUser?: (userId: string) => void
-  /** Ids de usuarios que el actual tiene bloqueados (para mostrar Bloquear/Desbloquear) */
   blockedUserIds?: string[]
 }
 
@@ -22,6 +22,9 @@ interface ChatWindowProps {
 export function ChatWindow({
   chat,
   onSendMessage,
+  onSendImage,
+  onSendSticker,
+  onReaction,
   currentUserId,
   onBack,
   onBlockUser,
@@ -82,7 +85,12 @@ export function ChatWindow({
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain">
         {messagesWithOwn.map((message) => (
-          <Message key={message.id} message={message} />
+          <Message
+            key={message.id}
+            message={message}
+            currentUserId={currentUserId}
+            onReaction={onReaction}
+          />
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -94,7 +102,11 @@ export function ChatWindow({
           </p>
         </div>
       ) : (
-        <MessageInput onSend={onSendMessage} />
+        <MessageInput
+          onSend={onSendMessage}
+          onSendImage={onSendImage}
+          onSendSticker={onSendSticker}
+        />
       )}
     </div>
   )

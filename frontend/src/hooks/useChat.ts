@@ -87,6 +87,30 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     }
   }, [currentChatId])
 
+  function normalizeMessage(m: {
+        id: string
+        text?: string
+        type?: string
+        imageUrl?: string | null
+        stickerUrl?: string | null
+        reactions?: Array<{ userId: string; emoji: string }>
+        senderId?: string | null
+        senderName?: string
+        timestamp: number
+      }): Message {
+    return {
+      id: m.id,
+      text: m.text ?? '',
+      type: (m.type as Message['type']) || 'text',
+      imageUrl: m.imageUrl ?? null,
+      stickerUrl: m.stickerUrl ?? null,
+      reactions: m.reactions ?? [],
+      senderId: m.senderId ?? '',
+      senderName: m.senderName ?? 'Anónimo',
+      timestamp: m.timestamp,
+    }
+  }
+
   // Historial al abrir un chat (desde MongoDB)
   useEffect(() => {
     const onHistory = ({
@@ -94,15 +118,19 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
       messages,
     }: {
       chatId: string
-      messages: Array<{ id: string; text: string; senderId: string | null; senderName: string; timestamp: number }>
+      messages: Array<{
+        id: string
+        text?: string
+        type?: string
+        imageUrl?: string | null
+        stickerUrl?: string | null
+        reactions?: Array<{ userId: string; emoji: string }>
+        senderId: string | null
+        senderName: string
+        timestamp: number
+      }>
     }) => {
-      const normalized: Message[] = messages.map((m) => ({
-        id: m.id,
-        text: m.text,
-        senderId: m.senderId ?? '',
-        senderName: m.senderName ?? 'Anónimo',
-        timestamp: m.timestamp,
-      }))
+      const normalized: Message[] = messages.map((m) => normalizeMessage(m))
       setChats((prev) => {
         const existing = prev.find((c) => c.id === chatId)
         if (!existing) return prev
@@ -127,14 +155,18 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
 
   // Recibir mensajes en tiempo real
   useEffect(() => {
-    const onMessage = (msg: SocketMessage) => {
-      const message: Message = {
+    const onMessage = (msg: SocketMessage & { type?: string; imageUrl?: string | null; stickerUrl?: string | null; reactions?: Array<{ userId: string; emoji: string }> }) => {
+      const message: Message = normalizeMessage({
         id: msg.id,
         text: msg.text,
+        type: msg.type,
+        imageUrl: msg.imageUrl,
+        stickerUrl: msg.stickerUrl,
+        reactions: msg.reactions,
         senderId: msg.senderId,
         senderName: msg.senderName,
         timestamp: msg.timestamp,
-      }
+      })
       setChats((prev) => {
         const existing = prev.find((c) => c.id === msg.chatId)
         if (existing) {
@@ -165,6 +197,32 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
       socket.off(SOCKET_EVENTS.NEW_MESSAGE, onMessage)
     }
   }, [userId, userName])
+
+  // Actualizar reacciones cuando alguien reacciona
+  useEffect(() => {
+    const onUpdated = (updated: {
+      id: string
+      chatId: string
+      reactions?: Array<{ userId: string; emoji: string }>
+    }) => {
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === updated.chatId
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === updated.id ? { ...m, reactions: updated.reactions ?? m.reactions ?? [] } : m
+                ),
+              }
+            : c
+        )
+      )
+    }
+    socket.on(SOCKET_EVENTS.MESSAGE_UPDATED, onUpdated)
+    return () => {
+      socket.off(SOCKET_EVENTS.MESSAGE_UPDATED, onUpdated)
+    }
+  }, [])
 
   const selectChat = useCallback((chatId: string | null) => {
     setCurrentChatId(chatId)
@@ -259,12 +317,48 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
       socket.emit(SOCKET_EVENTS.SEND_MESSAGE, {
         chatId: currentChatId,
         text,
+        type: 'text',
         senderId: userId,
         senderName: userName,
       })
     },
     [currentChatId, userId, userName]
   )
+
+  const sendImage = useCallback(
+    (imageUrl: string) => {
+      if (!currentChatId) return
+      socket.emit(SOCKET_EVENTS.SEND_MESSAGE, {
+        chatId: currentChatId,
+        text: '',
+        type: 'image',
+        imageUrl,
+        senderId: userId,
+        senderName: userName,
+      })
+    },
+    [currentChatId, userId, userName]
+  )
+
+  const sendSticker = useCallback(
+    (stickerUrl: string) => {
+      if (!currentChatId) return
+      socket.emit(SOCKET_EVENTS.SEND_MESSAGE, {
+        chatId: currentChatId,
+        text: '',
+        type: 'sticker',
+        stickerUrl,
+        senderId: userId,
+        senderName: userName,
+      })
+    },
+    [currentChatId, userId, userName]
+  )
+
+  const addReaction = useCallback((messageId: string, emoji: string) => {
+    if (!currentChatId) return
+    socket.emit(SOCKET_EVENTS.REACT_TO_MESSAGE, { messageId, chatId: currentChatId, emoji })
+  }, [currentChatId])
 
   return {
     chats,
@@ -276,6 +370,9 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     currentUserName: userName,
     selectChat,
     sendMessage,
+    sendImage,
+    sendSticker,
+    addReaction,
     openDirectChat,
     removeChat,
     refreshChats,

@@ -35,10 +35,10 @@
 ---
 
 ## Fase 4 – Contenido del mensaje
-- [ ] **Enviar imágenes**: subida (multer + almacenamiento o cloud), `Message.type: 'image'`, `imageUrl`
-- [ ] **Enviar emojis**: picker en input, guardar como texto o `Message.type: 'emoji'`
-- [ ] **Poner stickers**: `Message.type: 'sticker'`, `stickerUrl` o pack de stickers
-- [ ] **Reacción a mensajes**: usar `Message.reactions[]`, evento socket para añadir/quitar
+- [x] **Enviar imágenes**: subida (multer + almacenamiento o cloud), `Message.type: 'image'`, `imageUrl`
+- [x] **Enviar emojis**: picker en input, guardar como texto o `Message.type: 'emoji'`
+- [x] **Poner stickers**: `Message.type: 'sticker'`, `stickerUrl` o pack de stickers
+- [x] **Reacción a mensajes**: usar `Message.reactions[]`, evento socket para añadir/quitar
 
 ---
 

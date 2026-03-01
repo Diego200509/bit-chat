@@ -1,5 +1,5 @@
 const EVENTS = require('../config/socket.events');
-const { getOrCreateChat, saveMessage, getMessageHistory } = require('../services/chatService');
+const { getOrCreateChat, saveMessage, getMessageHistory, toggleReaction } = require('../services/chatService');
 const { User } = require('../models');
 
 /** Usuarios conectados: socketId -> { userId, userName } */
@@ -62,19 +62,30 @@ function registerSocketHandlers(io) {
     });
 
     socket.on(EVENTS.SEND_MESSAGE, async (payload) => {
-      const { chatId, text, senderId, senderName } = payload;
+      const { chatId, text, type, imageUrl, stickerUrl, senderId, senderName } = payload;
       const userId = socket.data.userId ?? senderId;
       const userName = socket.data.userName ?? senderName ?? 'Anónimo';
 
       const roomName = `chat:${chatId}`;
       let message;
 
+      const opts = {
+        text: typeof text === 'string' ? text : (payload.text ?? ''),
+        type: type || 'text',
+        imageUrl: imageUrl || null,
+        stickerUrl: stickerUrl || null,
+      };
+
       try {
-        const saved = await saveMessage(chatId, userId, userName, text);
+        const saved = await saveMessage(chatId, userId, userName, opts);
         message = saved || {
           id: generateMessageId(),
           chatId,
-          text,
+          text: opts.text,
+          type: opts.type || 'text',
+          imageUrl: opts.imageUrl ?? null,
+          stickerUrl: opts.stickerUrl ?? null,
+          reactions: [],
           senderId: userId,
           senderName: userName,
           timestamp: Date.now(),
@@ -84,7 +95,11 @@ function registerSocketHandlers(io) {
         message = {
           id: generateMessageId(),
           chatId,
-          text,
+          text: opts.text,
+          type: opts.type || 'text',
+          imageUrl: opts.imageUrl ?? null,
+          stickerUrl: opts.stickerUrl ?? null,
+          reactions: [],
           senderId: userId,
           senderName: userName,
           timestamp: Date.now(),
@@ -101,6 +116,21 @@ function registerSocketHandlers(io) {
       } catch (err) {
         console.error('Error emitting message:', err);
         io.to(roomName).emit(EVENTS.NEW_MESSAGE, message);
+      }
+    });
+
+    socket.on(EVENTS.REACT_TO_MESSAGE, async (payload) => {
+      const { messageId, chatId, emoji } = payload;
+      const userId = socket.data.userId;
+      if (!userId || !messageId || !emoji) return;
+      try {
+        const updated = await toggleReaction(messageId, userId, String(emoji));
+        if (updated) {
+          const roomName = `chat:${updated.chatId || chatId}`;
+          io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, updated);
+        }
+      } catch (err) {
+        console.error('Error toggling reaction:', err);
       }
     });
 

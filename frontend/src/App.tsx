@@ -27,6 +27,9 @@ function ChatLayout() {
     archiveChat,
     unarchiveChat,
     createGroupAndSelect,
+    sendImage,
+    sendSticker,
+    addReaction,
   } = useChat(user!.id, displayName)
 
   const [mobileView, setMobileView] = useState<MobileView>('list')
@@ -111,6 +114,9 @@ function ChatLayout() {
         <ChatWindow
           chat={currentChat}
           onSendMessage={sendMessage}
+          onSendImage={sendImage}
+          onSendSticker={sendSticker}
+          onReaction={addReaction}
           currentUserId={currentUserId}
           onBack={handleBackToList}
           onBlockUser={handleBlockUser}

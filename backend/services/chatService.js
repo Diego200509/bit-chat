@@ -20,9 +20,15 @@ async function getOrCreateChat(chatId) {
 }
 
 /**
- * Guarda un mensaje y devuelve el objeto para emitir (con id, chatId, senderId, senderName, etc.).
+ * Guarda un mensaje y devuelve el objeto para emitir.
+ * opts: { text?, type?, imageUrl?, stickerUrl? } — type por defecto 'text'.
  */
-async function saveMessage(chatId, senderId, senderName, text) {
+async function saveMessage(chatId, senderId, senderName, opts = {}) {
+  const text = typeof opts === 'string' ? opts : (opts.text ?? '');
+  const type = (typeof opts === 'object' && opts.type) || 'text';
+  const imageUrl = (typeof opts === 'object' && opts.imageUrl) || null;
+  const stickerUrl = (typeof opts === 'object' && opts.stickerUrl) || null;
+
   const chat = await getOrCreateChat(chatId);
   if (!chat) return null;
 
@@ -41,17 +47,29 @@ async function saveMessage(chatId, senderId, senderName, text) {
     chat: chat._id,
     sender: senderObjectId || null,
     senderName: senderObjectId ? null : name,
-    text,
-    type: 'text',
+    text: text || '',
+    type: ['text', 'image', 'sticker', 'emoji'].includes(type) ? type : 'text',
+    imageUrl: type === 'image' ? imageUrl : null,
+    stickerUrl: type === 'sticker' ? stickerUrl : null,
   });
 
+  const resolvedChatId = (chatId === 'chat-1' || chatId === 'general') ? chatId : chat._id.toString();
+  return messageToPayload(msg, resolvedChatId, name);
+}
+
+function messageToPayload(msg, resolvedChatId, senderDisplayName) {
+  const senderId = msg.sender ? msg.sender.toString() : null;
   return {
     id: msg._id.toString(),
-    chatId: chat._id.toString(),
-    text: msg.text,
-    senderId: senderObjectId ? senderObjectId.toString() : senderId,
-    senderName: name,
-    timestamp: msg.createdAt.getTime(),
+    chatId: resolvedChatId,
+    text: msg.text || '',
+    type: msg.type || 'text',
+    imageUrl: msg.imageUrl || null,
+    stickerUrl: msg.stickerUrl || null,
+    reactions: (msg.reactions || []).map((r) => ({ userId: r.userId.toString(), emoji: r.emoji })),
+    senderId,
+    senderName: senderDisplayName ?? msg.senderName ?? 'Anónimo',
+    timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
   };
 }
 
@@ -83,7 +101,11 @@ async function getMessageHistory(chatId, limit = 100, currentUserId = null) {
   return messages.map((m) => ({
     id: m._id.toString(),
     chatId: resolvedChatId,
-    text: m.text,
+    text: m.text || '',
+    type: m.type || 'text',
+    imageUrl: m.imageUrl || null,
+    stickerUrl: m.stickerUrl || null,
+    reactions: (m.reactions || []).map((r) => ({ userId: r.userId.toString(), emoji: r.emoji })),
     senderId: m.sender ? m.sender._id.toString() : null,
     senderName: m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'),
     timestamp: new Date(m.createdAt).getTime(),
@@ -129,7 +151,7 @@ async function getChatsForUser(userId, limit = 50) {
       image: general.image,
       isPinned: pinned,
       isArchived: archived,
-      lastMessage: lastMsg?.text,
+      lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : ''),
       lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : (general.updatedAt ? new Date(general.updatedAt).getTime() : null),
     });
   }
@@ -152,7 +174,7 @@ async function getChatsForUser(userId, limit = 50) {
       otherUserId: other?._id?.toString(),
       isPinned: pinned,
       isArchived: archived,
-      lastMessage: lastMsg?.text,
+      lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : ''),
       lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : new Date(c.updatedAt).getTime(),
     });
   }
@@ -173,7 +195,7 @@ async function getChatsForUser(userId, limit = 50) {
       image: c.image,
       isPinned: pinned,
       isArchived: archived,
-      lastMessage: lastMsg?.text,
+      lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : ''),
       lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : new Date(c.updatedAt).getTime(),
     });
   }
@@ -202,4 +224,30 @@ async function createGroupChat(creatorId, name, participantIds = [], image = nul
   return chat;
 }
 
-module.exports = { getOrCreateChat, getOrCreateDirectChat, getChatsForUser, createGroupChat, saveMessage, getMessageHistory };
+/**
+ * Añade o quita una reacción de un mensaje. Devuelve el mensaje actualizado para emitir.
+ */
+async function toggleReaction(messageId, userId, emoji) {
+  if (!messageId || !userId || !emoji || typeof emoji !== 'string') return null;
+  const msg = await Message.findById(messageId);
+  if (!msg) return null;
+  const userObjId = new mongoose.Types.ObjectId(userId);
+  const reactions = (msg.reactions || []).filter((r) => r.userId);
+  const idx = reactions.findIndex((r) => r.userId.toString() === userId && r.emoji === emoji);
+  if (idx >= 0) {
+    reactions.splice(idx, 1);
+  } else {
+    reactions.push({ userId: userObjId, emoji: emoji.trim().slice(0, 32) });
+  }
+  msg.reactions = reactions;
+  await msg.save();
+  const resolvedChatId = msg.chat.toString();
+  let senderName = msg.senderName || 'Anónimo';
+  if (msg.sender) {
+    const u = await User.findById(msg.sender).select('name nickname').lean();
+    senderName = u ? (u.nickname?.trim() || u.name) : senderName;
+  }
+  return messageToPayload(msg, resolvedChatId, senderName);
+}
+
+module.exports = { getOrCreateChat, getOrCreateDirectChat, getChatsForUser, createGroupChat, saveMessage, getMessageHistory, toggleReaction };

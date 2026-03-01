@@ -188,6 +188,22 @@ export async function unblockUser(userId: string): Promise<void> {
   if (!res.ok) throw new Error('Error al desbloquear')
 }
 
+/** Sube una imagen. Devuelve la URL pública (ej. /uploads/xxx). */
+export async function uploadImage(file: File): Promise<string> {
+  const form = new FormData()
+  form.append('file', file)
+  const headers: HeadersInit = {}
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
+  const res = await fetch(`${env.apiUrl}/upload`, {
+    method: 'POST',
+    headers,
+    body: form,
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error al subir imagen')
+  return data.url
+}
+
 // --- Auth ---
 export async function register(
   email: string,

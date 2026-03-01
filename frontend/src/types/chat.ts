@@ -9,9 +9,18 @@ export interface User {
   avatar?: string
 }
 
+export interface MessageReaction {
+  userId: string
+  emoji: string
+}
+
 export interface Message {
   id: string
   text: string
+  type?: 'text' | 'image' | 'sticker' | 'emoji'
+  imageUrl?: string | null
+  stickerUrl?: string | null
+  reactions?: MessageReaction[]
   senderId: string
   senderName: string
   timestamp: number

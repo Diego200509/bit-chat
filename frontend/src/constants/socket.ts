@@ -8,9 +8,11 @@ export const SOCKET_EVENTS = {
   JOIN_CHAT: 'join_chat',
   LEAVE_CHAT: 'leave_chat',
   SEND_MESSAGE: 'send_message',
+  REACT_TO_MESSAGE: 'react_to_message',
 
   // Servidor -> Cliente
   NEW_MESSAGE: 'new_message',
+  MESSAGE_UPDATED: 'message_updated',
   USERS_ONLINE: 'users_online',
   CHAT_HISTORY: 'chat_history',
 } as const
