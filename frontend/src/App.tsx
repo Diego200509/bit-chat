@@ -3,14 +3,15 @@ import { useAuth } from './context/AuthContext'
 import { useChat } from './hooks/useChat'
 import { useBlocked } from './hooks/useBlocked'
 import { AuthScreen } from './components/auth'
-import { ChatList, ChatWindow } from './components/chat'
+import { ChatList, ChatWindow, EditProfileModal } from './components/chat'
 import { FriendsPanel } from './components/friends'
 
 type MobileView = 'list' | 'chat'
 
 function ChatLayout() {
-  const { user, logout } = useAuth()
+  const { user, logout, updateProfile } = useAuth()
   const { blockedIds, blockUser, unblockUser } = useBlocked()
+  const displayName = user?.nickname?.trim() || user?.name || 'Yo'
   const {
     chats,
     currentChatId,
@@ -18,14 +19,19 @@ function ChatLayout() {
     chatsLoading,
     connected,
     currentUserId,
-    currentUserName,
     selectChat,
     sendMessage,
     openDirectChat,
-  } = useChat(user!.id, user!.name)
+    pinChat,
+    unpinChat,
+    archiveChat,
+    unarchiveChat,
+    createGroupAndSelect,
+  } = useChat(user!.id, displayName)
 
   const [mobileView, setMobileView] = useState<MobileView>('list')
   const [showFriendsPanel, setShowFriendsPanel] = useState(false)
+  const [showEditProfile, setShowEditProfile] = useState(false)
 
   const handleSelectChat = (chatId: string) => {
     selectChat(chatId)
@@ -84,10 +90,16 @@ function ChatLayout() {
             chats={chats}
             currentChatId={currentChatId}
             onSelectChat={handleSelectChat}
-            currentUserName={currentUserName}
+            currentUserName={displayName}
             onLogout={logout}
             onOpenFriends={handleOpenFriends}
+            onEditProfile={() => setShowEditProfile(true)}
             chatsLoading={chatsLoading}
+            onPinChat={pinChat}
+            onUnpinChat={unpinChat}
+            onArchiveChat={archiveChat}
+            onUnarchiveChat={unarchiveChat}
+            onCreateGroup={createGroupAndSelect}
           />
         )}
       </aside>
@@ -106,6 +118,14 @@ function ChatLayout() {
           blockedUserIds={blockedIds}
         />
       </main>
+      {showEditProfile && user && (
+        <EditProfileModal
+          currentName={user.name}
+          currentNickname={user.nickname?.trim() ?? ''}
+          onClose={() => setShowEditProfile(false)}
+          onSave={async (nickname: string) => updateProfile({ nickname: nickname || null })}
+        />
+      )}
       {!connected && (
         <div className="fixed bottom-4 right-4 px-3 py-2 rounded-lg bg-amber-600/90 text-white text-sm z-20 safe-b">
           Reconectando…

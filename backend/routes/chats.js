@@ -1,12 +1,12 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const { Chat } = require('../models');
-const { getOrCreateDirectChat, getChatsForUser } = require('../services/chatService');
+const { getOrCreateDirectChat, getChatsForUser, createGroupChat } = require('../services/chatService');
 
 const router = express.Router();
 router.use(authMiddleware);
 
-/** GET /chats - Lista mis chats (General + directos). Incluye isBlocked en directos. */
+/** GET /chats - Lista mis chats (General + directos + grupos). Incluye isBlocked, isPinned, isArchived. */
 router.get('/', async (req, res) => {
   try {
     const list = await getChatsForUser(req.userId);
@@ -34,17 +34,97 @@ router.post('/direct', async (req, res) => {
       return res.status(400).json({ error: 'otherUserId inválido' });
     }
     const chat = await getOrCreateDirectChat(req.userId, otherUserId);
-    const populated = await Chat.findById(chat._id).populate('participants', 'name avatar').lean();
+    const populated = await Chat.findById(chat._id).populate('participants', 'name nickname avatar').lean();
     const other = populated?.participants?.find((p) => p._id.toString() !== req.userId);
+    const displayName = other ? (other.nickname?.trim() || other.name) : 'Usuario';
     return res.json({
       id: chat._id.toString(),
-      name: other?.name || 'Usuario',
+      name: displayName,
       type: 'direct',
       otherUserId: other?._id?.toString(),
     });
   } catch (err) {
     console.error('Direct chat error:', err);
     res.status(500).json({ error: 'Error al abrir chat' });
+  }
+});
+
+/** POST /chats/group - Crear grupo. Body: { name, image?, participantIds: string[] } */
+router.post('/group', async (req, res) => {
+  try {
+    const { name, image, participantIds } = req.body || {};
+    const ids = Array.isArray(participantIds) ? participantIds.filter((id) => id && id !== req.userId) : [];
+    const chat = await createGroupChat(req.userId, name || 'Grupo', ids, image || null);
+    return res.status(201).json({
+      id: chat._id.toString(),
+      name: chat.name || 'Grupo',
+      type: 'group',
+      image: chat.image,
+    });
+  } catch (err) {
+    console.error('Create group error:', err);
+    res.status(500).json({ error: 'Error al crear grupo' });
+  }
+});
+
+function resolveChatId(id, userId) {
+  if (id === 'chat-1') return Chat.findOne({ name: 'General', type: 'group' });
+  return Chat.findOne({ _id: id, participants: userId });
+}
+
+/** POST /chats/:id/pin - Fijar chat para el usuario actual */
+router.post('/:id/pin', async (req, res) => {
+  try {
+    const chat = await resolveChatId(req.params.id, req.userId);
+    if (!chat) return res.status(404).json({ error: 'Chat no encontrado' });
+    await Chat.findByIdAndUpdate(chat._id, { $addToSet: { pinnedBy: req.userId } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Pin chat error:', err);
+    res.status(500).json({ error: 'Error al fijar' });
+  }
+});
+
+/** POST /chats/:id/unpin - Quitar fijado */
+router.post('/:id/unpin', async (req, res) => {
+  try {
+    const chat = await resolveChatId(req.params.id, req.userId);
+    if (!chat) return res.status(404).json({ error: 'Chat no encontrado' });
+    await Chat.findByIdAndUpdate(chat._id, { $pull: { pinnedBy: req.userId } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Unpin chat error:', err);
+    res.status(500).json({ error: 'Error al quitar fijado' });
+  }
+});
+
+/** POST /chats/:id/archive - Archivar chat para el usuario actual */
+router.post('/:id/archive', async (req, res) => {
+  try {
+    const id = req.params.id === 'chat-1' ? null : req.params.id;
+    const query = id ? { _id: id, participants: req.userId } : { name: 'General', type: 'group' };
+    const chat = await Chat.findOne(query);
+    if (!chat) return res.status(404).json({ error: 'Chat no encontrado' });
+    await Chat.findByIdAndUpdate(chat._id, { $addToSet: { archivedBy: req.userId } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Archive chat error:', err);
+    res.status(500).json({ error: 'Error al archivar' });
+  }
+});
+
+/** POST /chats/:id/unarchive - Desarchivar */
+router.post('/:id/unarchive', async (req, res) => {
+  try {
+    const id = req.params.id === 'chat-1' ? null : req.params.id;
+    const query = id ? { _id: id } : { name: 'General', type: 'group' };
+    const chat = await Chat.findOne(query);
+    if (!chat) return res.status(404).json({ error: 'Chat no encontrado' });
+    await Chat.findByIdAndUpdate(chat._id, { $pull: { archivedBy: req.userId } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Unarchive chat error:', err);
+    res.status(500).json({ error: 'Error al desarchivar' });
   }
 });
 

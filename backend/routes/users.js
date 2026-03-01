@@ -5,6 +5,25 @@ const { User } = require('../models');
 const router = express.Router();
 router.use(authMiddleware);
 
+/** PATCH /users/me - Actualizar perfil (nickname). Body: { nickname?: string | null } */
+router.patch('/me', async (req, res) => {
+  try {
+    const { nickname } = req.body || {};
+    const update = {};
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'nickname')) {
+      update.nickname = typeof nickname === 'string' ? (nickname.trim() || null) : null;
+    }
+    if (Object.keys(update).length === 0) return res.json({ ok: true });
+    const user = await User.findByIdAndUpdate(req.userId, { $set: update }, { returnDocument: 'after' })
+      .select('name email nickname avatar')
+      .lean();
+    return res.json({ id: user._id.toString(), name: user.name, nickname: user.nickname, email: user.email, avatar: user.avatar });
+  } catch (err) {
+    console.error('Update me error:', err);
+    res.status(500).json({ error: 'Error al actualizar' });
+  }
+});
+
 /** GET /users/blocked - Lista de ids de usuarios que yo he bloqueado */
 router.get('/blocked', async (req, res) => {
   try {

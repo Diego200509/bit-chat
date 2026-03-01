@@ -21,13 +21,16 @@ export interface Message {
 
 export interface Chat {
   id: string
-  /** En un chat 1-a-1, el otro usuario */
+  /** En un chat 1-a-1, el otro usuario; en grupo, nombre del grupo */
   name: string
   avatar?: string
+  image?: string | null
   /** Solo en chat directo: id del otro usuario (para bloquear, etc.) */
   otherUserId?: string
   /** Solo en chat directo: si el usuario actual tiene bloqueado al otro */
   isBlocked?: boolean
+  isPinned?: boolean
+  isArchived?: boolean
   lastMessage?: string
   lastMessageTime?: number
   unread?: number

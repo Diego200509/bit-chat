@@ -30,10 +30,10 @@ async function saveMessage(chatId, senderId, senderName, text) {
   let senderObjectId = null;
   let name = senderName || 'Anónimo';
   if (isObjectId) {
-    const user = await User.findById(senderId).select('name');
+    const user = await User.findById(senderId).select('name nickname');
     if (user) {
       senderObjectId = user._id;
-      name = user.name;
+      name = user.nickname?.trim() || user.name;
     }
   }
 
@@ -66,7 +66,7 @@ async function getMessageHistory(chatId, limit = 100, currentUserId = null) {
   let messages = await Message.find({ chat: chat._id })
     .sort({ createdAt: 1 })
     .limit(limit * 2)
-    .populate('sender', 'name')
+    .populate('sender', 'name nickname')
     .lean();
 
   if (currentUserId) {
@@ -85,7 +85,7 @@ async function getMessageHistory(chatId, limit = 100, currentUserId = null) {
     chatId: resolvedChatId,
     text: m.text,
     senderId: m.sender ? m.sender._id.toString() : null,
-    senderName: m.sender ? m.sender.name : (m.senderName || 'Anónimo'),
+    senderName: m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'),
     timestamp: new Date(m.createdAt).getTime(),
   }));
 }
@@ -110,40 +110,96 @@ async function getOrCreateDirectChat(userId1, userId2) {
 }
 
 /**
- * Lista chats del usuario: General + directos donde participa.
+ * Lista chats del usuario: General + directos + grupos. Incluye isPinned, isArchived.
  */
 async function getChatsForUser(userId, limit = 50) {
   const userObjId = new mongoose.Types.ObjectId(userId);
-  const general = await Chat.findOne({ name: 'General', type: 'group' }).lean();
-  const directChats = await Chat.find({ type: 'direct', participants: userObjId })
-    .populate('participants', 'name avatar')
-    .sort({ updatedAt: -1 })
-    .limit(limit)
-    .lean();
+  const { Message } = require('../models');
   const list = [];
+
+  const general = await Chat.findOne({ name: 'General', type: 'group' }).lean();
   if (general) {
+    const lastMsg = await Message.findOne({ chat: general._id }).sort({ createdAt: -1 }).lean();
+    const pinned = (general.pinnedBy || []).some((id) => id.toString() === userId);
+    const archived = (general.archivedBy || []).some((id) => id.toString() === userId);
     list.push({
       id: 'chat-1',
       name: 'General',
       type: 'group',
-      lastMessageTime: general.updatedAt ? new Date(general.updatedAt).getTime() : null,
+      image: general.image,
+      isPinned: pinned,
+      isArchived: archived,
+      lastMessage: lastMsg?.text,
+      lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : (general.updatedAt ? new Date(general.updatedAt).getTime() : null),
     });
   }
-  const { Message } = require('../models');
+
+  const directChats = await Chat.find({ type: 'direct', participants: userObjId })
+    .populate('participants', 'name nickname avatar')
+    .sort({ updatedAt: -1 })
+    .limit(limit)
+    .lean();
   for (const c of directChats) {
     const other = c.participants?.find((p) => p._id.toString() !== userId);
+    const displayName = other ? (other.nickname?.trim() || other.name) : 'Usuario';
     const lastMsg = await Message.findOne({ chat: c._id }).sort({ createdAt: -1 }).lean();
+    const pinned = (c.pinnedBy || []).some((id) => id.toString() === userId);
+    const archived = (c.archivedBy || []).some((id) => id.toString() === userId);
     list.push({
       id: c._id.toString(),
-      name: other?.name || 'Usuario',
+      name: displayName,
       type: 'direct',
       otherUserId: other?._id?.toString(),
+      isPinned: pinned,
+      isArchived: archived,
       lastMessage: lastMsg?.text,
       lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : new Date(c.updatedAt).getTime(),
     });
   }
-  list.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+
+  const groupChats = await Chat.find({ type: 'group', participants: userObjId, name: { $ne: 'General' } })
+    .populate('participants', 'name nickname avatar')
+    .sort({ updatedAt: -1 })
+    .limit(limit)
+    .lean();
+  for (const c of groupChats) {
+    const lastMsg = await Message.findOne({ chat: c._id }).sort({ createdAt: -1 }).lean();
+    const pinned = (c.pinnedBy || []).some((id) => id.toString() === userId);
+    const archived = (c.archivedBy || []).some((id) => id.toString() === userId);
+    list.push({
+      id: c._id.toString(),
+      name: c.name || 'Grupo',
+      type: 'group',
+      image: c.image,
+      isPinned: pinned,
+      isArchived: archived,
+      lastMessage: lastMsg?.text,
+      lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : new Date(c.updatedAt).getTime(),
+    });
+  }
+
+  list.sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return (b.lastMessageTime || 0) - (a.lastMessageTime || 0);
+  });
   return list;
 }
 
-module.exports = { getOrCreateChat, getOrCreateDirectChat, getChatsForUser, saveMessage, getMessageHistory };
+/**
+ * Crea un chat de tipo grupo.
+ */
+async function createGroupChat(creatorId, name, participantIds = [], image = null) {
+  const allIds = [new mongoose.Types.ObjectId(creatorId), ...participantIds.map((id) => new mongoose.Types.ObjectId(id))];
+  const uniqueIds = [...new Set(allIds.map((id) => id.toString()))].map((id) => new mongoose.Types.ObjectId(id));
+  const chat = await Chat.create({
+    type: 'group',
+    name: name || 'Grupo',
+    image: image || null,
+    participants: uniqueIds,
+    createdBy: creatorId,
+  });
+  return chat;
+}
+
+module.exports = { getOrCreateChat, getOrCreateDirectChat, getChatsForUser, createGroupChat, saveMessage, getMessageHistory };

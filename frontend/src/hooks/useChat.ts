@@ -14,6 +14,9 @@ function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean }): Chat 
     name: item.name,
     otherUserId: item.otherUserId,
     isBlocked: item.isBlocked,
+    isPinned: item.isPinned,
+    isArchived: item.isArchived,
+    image: item.image,
     lastMessage: item.lastMessage,
     lastMessageTime: item.lastMessageTime ?? undefined,
     messages: [],
@@ -187,6 +190,69 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     }
   }, [])
 
+  const refreshChats = useCallback(async () => {
+    try {
+      const list = await api.getChats()
+      setChats(list.map(listItemToChat))
+    } catch {
+      // keep current list
+    }
+  }, [])
+
+  const sortChats = useCallback((list: Chat[]) => {
+    return [...list].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1
+      if (!a.isPinned && b.isPinned) return 1
+      return (b.lastMessageTime || 0) - (a.lastMessageTime || 0)
+    })
+  }, [])
+
+  const pinChat = useCallback(async (chatId: string) => {
+    try {
+      await api.pinChat(chatId)
+      setChats((prev) => sortChats(prev.map((c) => (c.id === chatId ? { ...c, isPinned: true } : c))))
+    } catch {
+      // error handled by caller
+    }
+  }, [sortChats])
+
+  const unpinChat = useCallback(async (chatId: string) => {
+    try {
+      await api.unpinChat(chatId)
+      setChats((prev) => sortChats(prev.map((c) => (c.id === chatId ? { ...c, isPinned: false } : c))))
+    } catch {
+      // error handled by caller
+    }
+  }, [sortChats])
+
+  const archiveChat = useCallback(async (chatId: string) => {
+    try {
+      await api.archiveChat(chatId)
+      setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, isArchived: true } : c)))
+    } catch {
+      // error handled by caller
+    }
+  }, [])
+
+  const unarchiveChat = useCallback(async (chatId: string) => {
+    try {
+      await api.unarchiveChat(chatId)
+      setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, isArchived: false } : c)))
+    } catch {
+      // error handled by caller
+    }
+  }, [])
+
+  const createGroupAndSelect = useCallback(async (name: string, participantIds: string[], image?: string | null) => {
+    try {
+      const item = await api.createGroupChat(name, participantIds, image)
+      await refreshChats()
+      setCurrentChatId(item.id)
+    } catch {
+      throw new Error('Error al crear grupo')
+    }
+  }, [refreshChats])
+
   const sendMessage = useCallback(
     (text: string) => {
       if (!currentChatId) return
@@ -212,5 +278,11 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     sendMessage,
     openDirectChat,
     removeChat,
+    refreshChats,
+    pinChat,
+    unpinChat,
+    archiveChat,
+    unarchiveChat,
+    createGroupAndSelect,
   }
 }

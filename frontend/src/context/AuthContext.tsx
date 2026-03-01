@@ -24,6 +24,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
+  updateProfile: (updates: { nickname?: string | null }) => Promise<void>
   error: string | null
   clearError: () => void
 }
@@ -136,6 +137,19 @@ saveStored(auth)
     setUser(null)
   }, [])
 
+  const updateProfile = useCallback(async (updates: { nickname?: string | null }) => {
+    if (!user) return
+    const updated = await api.updateMe(updates)
+    const nextUser: api.AuthUser = {
+      ...user,
+      name: updated.name ?? user.name,
+      nickname: 'nickname' in updated ? updated.nickname : user.nickname,
+      avatar: updated.avatar ?? user.avatar,
+    }
+    setUser(nextUser)
+    saveStored({ token: token!, user: nextUser })
+  }, [user, token])
+
   const value: AuthContextValue = {
     user,
     token,
@@ -143,6 +157,7 @@ saveStored(auth)
     login,
     register,
     logout,
+    updateProfile,
     error,
     clearError,
   }

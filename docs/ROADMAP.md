@@ -27,10 +27,10 @@
 ---
 
 ## Fase 3 – Grupos y UX de chat
-- [ ] **Hacer grupos**: crear chat tipo `group`, añadir participantes, nombre e imagen
-- [ ] **Fijar chat**: usar `Chat.pinnedBy`, lista de fijados arriba
-- [ ] **Chat archivado**: usar `Chat.archivedBy`, vista de archivados
-- [ ] **Apodar usuario**: usar `User.nickname` o apodo por chat
+- [x] **Hacer grupos**: crear chat tipo `group`, añadir participantes, nombre e imagen
+- [x] **Fijar chat**: usar `Chat.pinnedBy`, lista de fijados arriba
+- [x] **Chat archivado**: usar `Chat.archivedBy`, vista de archivados
+- [x] **Apodar usuario**: usar `User.nickname` o apodo por chat
 
 ---
 

@@ -30,7 +30,7 @@ router.post('/request', async (req, res) => {
     const doc = await Friendship.findOneAndUpdate(
       { requester: req.userId, addressee: addresseeId },
       { $setOnInsert: { requester: req.userId, addressee: addresseeId, status: 'pending' } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     const addressee = await User.findById(addresseeId).select('name').lean();
     return res.status(201).json({

@@ -16,6 +16,7 @@ export interface AuthUser {
   id: string
   email: string
   name: string
+  nickname?: string | null
   avatar?: string | null
 }
 
@@ -52,8 +53,11 @@ export interface ChatListItem {
   name: string
   type: 'direct' | 'group'
   otherUserId?: string
+  image?: string | null
   lastMessage?: string
   lastMessageTime?: number | null
+  isPinned?: boolean
+  isArchived?: boolean
 }
 
 export async function searchUsers(q: string): Promise<SearchUser[]> {
@@ -117,6 +121,56 @@ export async function createDirectChat(otherUserId: string): Promise<ChatListIte
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Error al abrir chat')
+  return data
+}
+
+export async function createGroupChat(name: string, participantIds: string[], image?: string | null): Promise<ChatListItem> {
+  const res = await fetch(`${env.apiUrl}/chats/group`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ name, participantIds, image: image || undefined }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error al crear grupo')
+  return data
+}
+
+export async function pinChat(chatId: string): Promise<void> {
+  const res = await fetch(`${env.apiUrl}/chats/${chatId}/pin`, { method: 'POST', headers: authHeaders() })
+  if (!res.ok) throw new Error('Error al fijar')
+}
+
+export async function unpinChat(chatId: string): Promise<void> {
+  const res = await fetch(`${env.apiUrl}/chats/${chatId}/unpin`, { method: 'POST', headers: authHeaders() })
+  if (!res.ok) throw new Error('Error al quitar fijado')
+}
+
+export async function archiveChat(chatId: string): Promise<void> {
+  const res = await fetch(`${env.apiUrl}/chats/${chatId}/archive`, { method: 'POST', headers: authHeaders() })
+  if (!res.ok) throw new Error('Error al archivar')
+}
+
+export async function unarchiveChat(chatId: string): Promise<void> {
+  const res = await fetch(`${env.apiUrl}/chats/${chatId}/unarchive`, { method: 'POST', headers: authHeaders() })
+  if (!res.ok) throw new Error('Error al desarchivar')
+}
+
+export interface MeProfile {
+  id: string
+  name: string
+  nickname?: string | null
+  email: string
+  avatar?: string | null
+}
+
+export async function updateMe(updates: { nickname?: string | null }): Promise<MeProfile> {
+  const res = await fetch(`${env.apiUrl}/users/me`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(updates),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error al actualizar')
   return data
 }
 
