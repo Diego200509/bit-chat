@@ -18,11 +18,11 @@
 
 ---
 
-## Fase 2 – Chat personal y amigos
-- [ ] **Chat personal** (1 a 1): crear chat directo entre dos usuarios
-- [ ] **Añadir amigos**: modelo Friendship o Contact, listar amigos, solicitudes
-- [ ] **Buscar usuarios**: endpoint y UI para buscar por nombre/email
-- [ ] **Bloquear gente**: usar `User.blockedUsers`, filtrar en backend
+## Fase 2 – Chat personal y amigos ✅
+- [x] **Chat personal** (1 a 1): crear chat directo entre dos usuarios
+- [x] **Añadir amigos**: modelo Friendship, listar amigos, solicitudes enviadas/recibidas
+- [x] **Buscar usuarios**: endpoint y UI para buscar por nombre/email
+- [x] **Bloquear gente**: `User.blockedUsers`, filtrar en búsqueda; botón bloquear en chat directo
 
 ---
 

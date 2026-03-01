@@ -24,6 +24,10 @@ export interface Chat {
   /** En un chat 1-a-1, el otro usuario */
   name: string
   avatar?: string
+  /** Solo en chat directo: id del otro usuario (para bloquear, etc.) */
+  otherUserId?: string
+  /** Solo en chat directo: si el usuario actual tiene bloqueado al otro */
+  isBlocked?: boolean
   lastMessage?: string
   lastMessageTime?: number
   unread?: number

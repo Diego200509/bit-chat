@@ -6,6 +6,8 @@ interface ChatListProps {
   onSelectChat: (chatId: string) => void
   currentUserName?: string
   onLogout?: () => void
+  onOpenFriends?: () => void
+  chatsLoading?: boolean
 }
 
 /**
@@ -17,24 +19,35 @@ export function ChatList({
   onSelectChat,
   currentUserName = 'Yo',
   onLogout,
+  onOpenFriends,
+  chatsLoading = false,
 }: ChatListProps) {
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      <header className="flex shrink-0 items-center gap-3 border-b border-bitchat-border p-4 safe-t">
-        <div className="w-10 h-10 rounded-full bg-bitchat-cyan flex items-center justify-center text-bitchat-blue-dark font-bold text-lg">
+      <header className="flex shrink-0 items-center gap-2 border-b border-bitchat-border p-4 safe-t">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bitchat-cyan font-bold text-bitchat-blue-dark text-lg">
           b
         </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-semibold text-bitchat-cyan truncate">
-            BitChat
-          </h1>
-          <p className="text-xs text-slate-400 truncate">{currentUserName}</p>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate font-semibold text-bitchat-cyan">BitChat</h1>
+          <p className="truncate text-xs text-slate-400">{currentUserName}</p>
         </div>
+        {onOpenFriends && (
+          <button
+            type="button"
+            onClick={onOpenFriends}
+            className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
+            title="Amigos"
+            aria-label="Amigos"
+          >
+            <PeopleIcon />
+          </button>
+        )}
         {onLogout && (
           <button
             type="button"
             onClick={onLogout}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-bitchat-panel transition-colors"
+            className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-slate-200 transition-colors"
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
           >
@@ -44,9 +57,13 @@ export function ChatList({
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        {chats.length === 0 ? (
+        {chatsLoading ? (
+          <div className="flex items-center justify-center p-6 text-slate-500 text-sm">
+            Cargando conversaciones…
+          </div>
+        ) : chats.length === 0 ? (
           <div className="p-6 text-center text-slate-500 text-sm">
-            No hay conversaciones. El backend asignará chats cuando te conectes.
+            No hay conversaciones. Abre Amigos y chatea con alguien.
           </div>
         ) : (
           <ul className="divide-y divide-bitchat-border">
@@ -89,6 +106,14 @@ export function ChatList({
         )}
       </div>
     </div>
+  )
+}
+
+function PeopleIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path fillRule="evenodd" d="M8.25 6.75a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0ZM15.75 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM2.25 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM6.31 15.117A6.745 6.745 0 0 1 12 12a6.745 6.745 0 0 1 6.709 7.498.75.75 0 0 1-.372.568A12.696 12.696 0 0 1 12 21c-2.513 0-4.746-.797-6.75-2.257a6.75 6.75 0 0 1-.372-.568 6.787 6.787 0 0 1 1.019-4.38Z" clipRule="evenodd" />
+    </svg>
   )
 }
 

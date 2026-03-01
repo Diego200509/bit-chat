@@ -1,29 +1,62 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { socket } from '../lib/socket'
 import { SOCKET_EVENTS } from '../constants/socket'
+import * as api from '../lib/api'
 import type { Chat, Message } from '../types/chat'
 import type { SocketMessage } from '../types/socket'
 
 const DEFAULT_USER_ID = 'user-1'
 const DEFAULT_USER_NAME = 'Yo'
 
-const INITIAL_CHATS: Chat[] = [
-  { id: 'chat-1', name: 'General', messages: [] },
-]
+function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean }): Chat {
+  return {
+    id: item.id,
+    name: item.name,
+    otherUserId: item.otherUserId,
+    isBlocked: item.isBlocked,
+    lastMessage: item.lastMessage,
+    lastMessageTime: item.lastMessageTime ?? undefined,
+    messages: [],
+  }
+}
 
 /**
  * Hook que encapsula el estado del chat y la lógica de Socket.io.
- * Escalable: aquí se puede añadir persistencia, optimistic updates, etc.
+ * Carga la lista de chats desde la API y permite abrir chat directo.
  */
 export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) {
-  const [chats, setChats] = useState<Chat[]>(INITIAL_CHATS)
-  const [currentChatId, setCurrentChatId] = useState<string | null>('chat-1')
+  const [chats, setChats] = useState<Chat[]>([])
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
+  const [chatsLoading, setChatsLoading] = useState(true)
   const [connected, setConnected] = useState(socket.connected)
   const prevChatIdRef = useRef<string | null>(null)
 
   const currentChat = currentChatId
     ? chats.find((c) => c.id === currentChatId) ?? null
     : null
+
+  // Cargar lista de chats desde la API al montar (usuario autenticado)
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getChats()
+      .then((list) => {
+        if (cancelled) return
+        const next = list.map(listItemToChat)
+        setChats(next)
+        if (next.length > 0 && !currentChatId) setCurrentChatId(next[0].id)
+      })
+      .catch(() => {
+        if (!cancelled) setChats([{ id: 'chat-1', name: 'General', messages: [] }])
+        if (!cancelled && !currentChatId) setCurrentChatId('chat-1')
+      })
+      .finally(() => {
+        if (!cancelled) setChatsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
 
   // Conexión: el usuario ya viene del JWT en el backend (auth en handshake)
   useEffect(() => {
@@ -130,8 +163,28 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     }
   }, [userId, userName])
 
-  const selectChat = useCallback((chatId: string) => {
+  const selectChat = useCallback((chatId: string | null) => {
     setCurrentChatId(chatId)
+  }, [])
+
+  const removeChat = useCallback((chatId: string) => {
+    setChats((prev) => prev.filter((c) => c.id !== chatId))
+    setCurrentChatId((curr) => (curr === chatId ? null : curr))
+  }, [])
+
+  const openDirectChat = useCallback(async (otherUserId: string) => {
+    try {
+      const item = await api.createDirectChat(otherUserId)
+      setChats((prev) => {
+        const asChat = listItemToChat(item)
+        const found = prev.some((c) => c.id === asChat.id)
+        if (found) return prev.map((c) => (c.id === asChat.id ? { ...c, name: asChat.name } : c))
+        return [asChat, ...prev]
+      })
+      setCurrentChatId(item.id)
+    } catch {
+      // error ya mostrado por quien llame
+    }
   }, [])
 
   const sendMessage = useCallback(
@@ -151,10 +204,13 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     chats,
     currentChatId,
     currentChat,
+    chatsLoading,
     connected,
     currentUserId: userId,
     currentUserName: userName,
     selectChat,
     sendMessage,
+    openDirectChat,
+    removeChat,
   }
 }

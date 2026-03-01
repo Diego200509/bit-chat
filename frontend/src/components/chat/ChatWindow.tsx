@@ -7,8 +7,13 @@ interface ChatWindowProps {
   chat: Chat | null
   onSendMessage: (text: string) => void
   currentUserId: string
-  /** En móvil: callback para volver a la lista de chats */
   onBack?: () => void
+  /** En chat directo: bloquear al otro usuario */
+  onBlockUser?: (userId: string) => void
+  /** En chat directo: desbloquear al otro usuario */
+  onUnblockUser?: (userId: string) => void
+  /** Ids de usuarios que el actual tiene bloqueados (para mostrar Bloquear/Desbloquear) */
+  blockedUserIds?: string[]
 }
 
 /**
@@ -19,6 +24,9 @@ export function ChatWindow({
   onSendMessage,
   currentUserId,
   onBack,
+  onBlockUser,
+  onUnblockUser,
+  blockedUserIds = [],
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -62,6 +70,14 @@ export function ChatWindow({
           <h2 className="truncate font-semibold text-slate-100">{chat.name}</h2>
           <p className="text-xs text-slate-500">BitChat</p>
         </div>
+        {chat.otherUserId && (onBlockUser || onUnblockUser) && (
+          <BlockUnblockButton
+            otherUserId={chat.otherUserId}
+            blockedUserIds={blockedUserIds}
+            onBlock={onBlockUser}
+            onUnblock={onUnblockUser}
+          />
+        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain">
@@ -71,8 +87,61 @@ export function ChatWindow({
         <div ref={messagesEndRef} />
       </div>
 
-      <MessageInput onSend={onSendMessage} />
+      {chat.otherUserId && blockedUserIds.includes(chat.otherUserId) ? (
+        <div className="border-t border-bitchat-border bg-bitchat-panel p-4 safe-b">
+          <p className="text-center text-sm text-slate-400">
+            Has bloqueado a este usuario. Desbloquea para enviar mensajes.
+          </p>
+        </div>
+      ) : (
+        <MessageInput onSend={onSendMessage} />
+      )}
     </div>
+  )
+}
+
+function BlockUnblockButton({
+  otherUserId,
+  blockedUserIds,
+  onBlock,
+  onUnblock,
+}: {
+  otherUserId: string
+  blockedUserIds: string[]
+  onBlock?: (userId: string) => void
+  onUnblock?: (userId: string) => void
+}) {
+  const isBlocked = blockedUserIds.includes(otherUserId)
+  return (
+    <button
+      type="button"
+      onClick={() => (isBlocked ? onUnblock?.(otherUserId) : onBlock?.(otherUserId))}
+      className={`rounded-lg p-2 transition-colors ${
+        isBlocked
+          ? 'text-slate-400 hover:bg-bitchat-sidebar hover:text-bitchat-cyan'
+          : 'text-slate-400 hover:bg-bitchat-sidebar hover:text-red-400'
+      }`}
+      title={isBlocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
+      aria-label={isBlocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
+    >
+      {isBlocked ? <UnblockIcon /> : <BlockIcon />}
+    </button>
+  )
+}
+
+function BlockIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM3.75 12a8.25 8.25 0 0 1 14.39-5.28l-9.67 9.67A8.22 8.22 0 0 1 3.75 12Zm16.5 0a8.22 8.22 0 0 1-3.97 6.61l-9.67-9.67A8.25 8.25 0 0 1 20.25 12Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function UnblockIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path fillRule="evenodd" d="M15.75 1.5a6.75 6.75 0 0 0-6.651 7.906c.067.39.032.717.221 1.093l.873 2.717a.75.75 0 0 0 1.261.44l2.713-3.452a.75.75 0 0 0 .14-.494 6.75 6.75 0 0 0 1.343-10.21ZM12 15a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clipRule="evenodd" />
+    </svg>
   )
 }
 

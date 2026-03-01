@@ -9,6 +9,7 @@ import {
 import { socket } from '../lib/socket'
 import * as api from '../lib/api'
 
+
 const STORAGE_KEY = 'bitchat_auth'
 
 interface StoredAuth {
@@ -60,9 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (stored?.token && stored?.user) {
       setToken(stored.token)
       setUser(stored.user)
+      api.setAuthToken(stored.token)
     }
     setLoading(false)
   }, [])
+
+  useEffect(() => {
+    api.setAuthToken(token)
+  }, [token])
 
   // Conectar socket cuando hay token; desconectar al cerrar sesión
   useEffect(() => {
@@ -96,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await api.login(email, password)
       const auth: StoredAuth = { token: data.token, user: data.user }
       saveStored(auth)
+      api.setAuthToken(data.token)
       setToken(data.token)
       setUser(data.user)
     } catch (err) {
@@ -110,9 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const data = await api.register(email, password, name)
         const auth: StoredAuth = { token: data.token, user: data.user }
-        saveStored(auth)
-        setToken(data.token)
-        setUser(data.user)
+saveStored(auth)
+      api.setAuthToken(data.token)
+      setToken(data.token)
+      setUser(data.user)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al registrar')
         throw err
@@ -123,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     saveStored(null)
+    api.setAuthToken(null)
     setToken(null)
     setUser(null)
   }, [])

@@ -1,26 +1,31 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useAuth } from './context/AuthContext'
 import { useChat } from './hooks/useChat'
+import { useBlocked } from './hooks/useBlocked'
 import { AuthScreen } from './components/auth'
 import { ChatList, ChatWindow } from './components/chat'
+import { FriendsPanel } from './components/friends'
 
-/** En móvil: 'list' = solo lista de chats, 'chat' = solo ventana de conversación */
 type MobileView = 'list' | 'chat'
 
 function ChatLayout() {
   const { user, logout } = useAuth()
+  const { blockedIds, blockUser, unblockUser } = useBlocked()
   const {
     chats,
     currentChatId,
     currentChat,
+    chatsLoading,
     connected,
     currentUserId,
     currentUserName,
     selectChat,
     sendMessage,
+    openDirectChat,
   } = useChat(user!.id, user!.name)
 
   const [mobileView, setMobileView] = useState<MobileView>('list')
+  const [showFriendsPanel, setShowFriendsPanel] = useState(false)
 
   const handleSelectChat = (chatId: string) => {
     selectChat(chatId)
@@ -31,6 +36,40 @@ function ChatLayout() {
     setMobileView('list')
   }
 
+  const handleOpenFriends = () => setShowFriendsPanel(true)
+  const handleCloseFriends = () => setShowFriendsPanel(false)
+
+  const handleOpenChatWithFriend = useCallback(
+    (otherUserId: string) => {
+      openDirectChat(otherUserId)
+      setShowFriendsPanel(false)
+      setMobileView('chat')
+    },
+    [openDirectChat]
+  )
+
+  const handleBlockUser = useCallback(
+    async (userId: string) => {
+      try {
+        await blockUser(userId)
+      } catch {
+        // toast o mensaje
+      }
+    },
+    [blockUser]
+  )
+
+  const handleUnblockUser = useCallback(
+    async (userId: string) => {
+      try {
+        await unblockUser(userId)
+      } catch {
+        // toast o mensaje
+      }
+    },
+    [unblockUser]
+  )
+
   return (
     <div className="h-screen flex overflow-hidden bg-bitchat-bg text-slate-100">
       <aside
@@ -38,13 +77,19 @@ function ChatLayout() {
           mobileView === 'chat' ? 'hidden md:flex' : 'flex'
         }`}
       >
-        <ChatList
-          chats={chats}
-          currentChatId={currentChatId}
-          onSelectChat={handleSelectChat}
-          currentUserName={currentUserName}
-          onLogout={logout}
-        />
+        {showFriendsPanel ? (
+          <FriendsPanel onOpenChat={handleOpenChatWithFriend} onClose={handleCloseFriends} />
+        ) : (
+          <ChatList
+            chats={chats}
+            currentChatId={currentChatId}
+            onSelectChat={handleSelectChat}
+            currentUserName={currentUserName}
+            onLogout={logout}
+            onOpenFriends={handleOpenFriends}
+            chatsLoading={chatsLoading}
+          />
+        )}
       </aside>
       <main
         className={`flex flex-1 flex-col min-w-0 min-h-0 ${
@@ -56,6 +101,9 @@ function ChatLayout() {
           onSendMessage={sendMessage}
           currentUserId={currentUserId}
           onBack={handleBackToList}
+          onBlockUser={handleBlockUser}
+          onUnblockUser={handleUnblockUser}
+          blockedUserIds={blockedIds}
         />
       </main>
       {!connected && (
