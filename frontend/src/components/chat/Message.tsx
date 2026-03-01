@@ -4,6 +4,33 @@ import type { Message as MessageType } from '../../types/chat'
 import { env } from '../../config/env'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😄', '😮', '😢', '👎']
+const LONG_TEXT_WORDS = 130
+
+function LongTextContent({ text, isOwn }: { text: string; isOwn: boolean }) {
+  const [expanded, setExpanded] = useState(false)
+  const words = text.trim() ? text.trim().split(/\s+/) : []
+  const isLong = words.length > LONG_TEXT_WORDS
+  const displayText = isLong && !expanded
+    ? words.slice(0, LONG_TEXT_WORDS).join(' ') + '...'
+    : text
+  const linkClass = isOwn
+    ? 'text-blue-800 hover:text-blue-900 hover:underline'
+    : 'text-bitchat-cyan hover:text-bitchat-cyan-bright hover:underline'
+  return (
+    <span className="block">
+      <p className="text-sm break-words whitespace-pre-wrap">{displayText}</p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className={`text-xs font-medium mt-0.5 focus:outline-none ${linkClass}`}
+        >
+          {expanded ? 'Leer menos' : 'Leer más'}
+        </button>
+      )}
+    </span>
+  )
+}
 
 function StickerContent({ url, fullUrl }: { url: string | null | undefined; fullUrl: (p: string) => string }) {
   const [failed, setFailed] = useState(false)
@@ -103,7 +130,7 @@ export function Message({ message, currentUserId, onReaction }: MessageProps) {
             <StickerContent url={message.stickerUrl} fullUrl={fullUrl} />
           )}
           {(type === 'text' || type === 'emoji' || (type === 'image' && message.text)) && (
-            <p className="text-sm break-words whitespace-pre-wrap">{message.text || ''}</p>
+            <LongTextContent text={message.text || ''} isOwn={isOwn} />
           )}
           <div className="flex items-center justify-end gap-1 mt-1 flex-wrap">
             {hasReactions && (
