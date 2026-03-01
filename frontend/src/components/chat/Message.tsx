@@ -16,7 +16,7 @@ export function Message({ message }: MessageProps) {
       className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} mb-2`}
     >
       <div
-        className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+        className={`max-w-[85%] rounded-2xl px-4 py-2 sm:max-w-[75%] ${
           isOwn
             ? 'rounded-br-md bg-bitchat-cyan text-bitchat-blue-dark'
             : 'rounded-bl-md bg-bitchat-received text-slate-200'

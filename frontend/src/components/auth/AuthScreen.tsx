@@ -8,14 +8,14 @@ export function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true)
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-bitchat-bg p-4">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-14 h-14 rounded-full bg-bitchat-cyan flex items-center justify-center text-bitchat-blue-dark font-bold text-2xl">
+    <div className="flex min-h-screen min-h-dvh flex-col items-center justify-center bg-bitchat-bg p-4 safe-t safe-b safe-l safe-r">
+      <div className="mb-6 flex items-center gap-3 sm:mb-8">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-bitchat-cyan text-bitchat-blue-dark font-bold text-xl sm:h-14 sm:w-14 sm:text-2xl">
           b
         </div>
-        <h1 className="text-2xl font-semibold text-bitchat-cyan">BitChat</h1>
+        <h1 className="text-xl font-semibold text-bitchat-cyan sm:text-2xl">BitChat</h1>
       </div>
-      <div className="bg-bitchat-panel border border-bitchat-border rounded-2xl p-6 w-full max-w-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-bitchat-border bg-bitchat-panel p-4 sm:p-6">
         {isLogin ? (
           <LoginForm
             onSubmit={login}

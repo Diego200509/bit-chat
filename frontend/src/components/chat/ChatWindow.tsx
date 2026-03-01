@@ -7,6 +7,8 @@ interface ChatWindowProps {
   chat: Chat | null
   onSendMessage: (text: string) => void
   currentUserId: string
+  /** En móvil: callback para volver a la lista de chats */
+  onBack?: () => void
 }
 
 /**
@@ -16,6 +18,7 @@ export function ChatWindow({
   chat,
   onSendMessage,
   currentUserId,
+  onBack,
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -25,11 +28,11 @@ export function ChatWindow({
 
   if (!chat) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-bitchat-bg text-slate-500">
-        <div className="w-16 h-16 rounded-full bg-bitchat-cyan/20 flex items-center justify-center text-bitchat-cyan mb-4">
+      <div className="flex flex-1 flex-col items-center justify-center bg-bitchat-bg px-4 text-center text-slate-500">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-bitchat-cyan/20 text-bitchat-cyan sm:h-16 sm:w-16">
           <ChatIcon />
         </div>
-        <p className="text-sm">Selecciona una conversación o espera a que alguien te escriba</p>
+        <p className="text-sm sm:text-base">Selecciona una conversación o espera a que alguien te escriba</p>
       </div>
     )
   }
@@ -40,18 +43,28 @@ export function ChatWindow({
   }))
 
   return (
-    <div className="flex-1 flex flex-col bg-bitchat-bg min-w-0">
-      <header className="flex items-center gap-3 p-4 border-b border-bitchat-border bg-bitchat-panel flex-shrink-0">
-        <div className="w-10 h-10 rounded-full bg-bitchat-blue-dark flex items-center justify-center text-bitchat-cyan font-semibold">
+    <div className="flex min-h-0 flex-1 flex-col bg-bitchat-bg">
+      <header className="flex shrink-0 items-center gap-3 border-b border-bitchat-border bg-bitchat-panel p-3 safe-t md:p-4">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-300 hover:bg-bitchat-sidebar hover:text-slate-100 active:opacity-80 md:hidden touch-manipulation"
+            aria-label="Volver a conversaciones"
+          >
+            <BackIcon />
+          </button>
+        )}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bitchat-blue-dark text-bitchat-cyan font-semibold">
           {chat.name.charAt(0).toUpperCase()}
         </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-slate-100 truncate">{chat.name}</h2>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate font-semibold text-slate-100">{chat.name}</h2>
           <p className="text-xs text-slate-500">BitChat</p>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain">
         {messagesWithOwn.map((message) => (
           <Message key={message.id} message={message} />
         ))}
@@ -60,6 +73,14 @@ export function ChatWindow({
 
       <MessageInput onSend={onSendMessage} />
     </div>
+  )
+}
+
+function BackIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+      <path fillRule="evenodd" d="M7.72 12.53a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 1 1 1.06 1.06L9.31 12l6.97 6.97a.75.75 0 1 1-1.06 1.06l-7.5-7.5Z" clipRule="evenodd" />
+    </svg>
   )
 }
 

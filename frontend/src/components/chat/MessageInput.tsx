@@ -27,7 +27,7 @@ export function MessageInput({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-center gap-2 p-3 bg-bitchat-panel border-t border-bitchat-border"
+      className="flex items-center gap-2 border-t border-bitchat-border bg-bitchat-panel p-3 safe-b md:p-3"
     >
       <input
         type="text"
@@ -35,7 +35,7 @@ export function MessageInput({
         onChange={(e) => setText(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="flex-1 rounded-2xl bg-bitchat-sidebar border border-bitchat-border px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bitchat-cyan/50 focus:border-bitchat-cyan"
+        className="min-w-0 flex-1 rounded-2xl border border-bitchat-border bg-bitchat-sidebar px-4 py-2.5 text-base text-slate-100 placeholder-slate-500 focus:border-bitchat-cyan focus:outline-none focus:ring-2 focus:ring-bitchat-cyan/50 md:text-sm"
       />
       <button
         type="submit"

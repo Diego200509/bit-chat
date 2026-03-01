@@ -19,8 +19,8 @@ export function ChatList({
   onLogout,
 }: ChatListProps) {
   return (
-    <div className="w-full md:w-[380px] flex flex-col bg-bitchat-sidebar border-r border-bitchat-border flex-shrink-0">
-      <header className="p-4 border-b border-bitchat-border flex items-center gap-3">
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <header className="flex shrink-0 items-center gap-3 border-b border-bitchat-border p-4 safe-t">
         <div className="w-10 h-10 rounded-full bg-bitchat-cyan flex items-center justify-center text-bitchat-blue-dark font-bold text-lg">
           b
         </div>
@@ -57,7 +57,7 @@ export function ChatList({
                   <button
                     type="button"
                     onClick={() => onSelectChat(chat.id)}
-                    className={`w-full flex items-center gap-3 p-4 text-left transition-colors ${
+                    className={`flex w-full items-center gap-3 p-4 text-left transition-colors active:bg-bitchat-panel/90 min-h-[72px] touch-manipulation ${
                       isActive
                         ? 'bg-bitchat-panel border-l-2 border-bitchat-cyan'
                         : 'hover:bg-bitchat-panel/70'
