@@ -18,6 +18,7 @@ export interface AuthUser {
   name: string
   nickname?: string | null
   avatar?: string | null
+  visibility?: 'visible' | 'invisible'
 }
 
 export interface AuthResponse {
@@ -53,6 +54,8 @@ export interface ChatListItem {
   name: string
   type: 'direct' | 'group'
   otherUserId?: string
+  avatar?: string | null
+  chatBackground?: string | null
   image?: string | null
   lastMessage?: string
   lastMessageTime?: number | null
@@ -135,6 +138,15 @@ export async function createGroupChat(name: string, participantIds: string[], im
   return data
 }
 
+export async function updateChatBackground(chatId: string, chatBackground: string | null): Promise<void> {
+  const res = await fetch(`${env.apiUrl}/chats/${chatId}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ chatBackground }),
+  })
+  if (!res.ok) throw new Error('Error al cambiar fondo')
+}
+
 export async function pinChat(chatId: string): Promise<void> {
   const res = await fetch(`${env.apiUrl}/chats/${chatId}/pin`, { method: 'POST', headers: authHeaders() })
   if (!res.ok) throw new Error('Error al fijar')
@@ -161,9 +173,10 @@ export interface MeProfile {
   nickname?: string | null
   email: string
   avatar?: string | null
+  visibility?: 'visible' | 'invisible'
 }
 
-export async function updateMe(updates: { nickname?: string | null }): Promise<MeProfile> {
+export async function updateMe(updates: { nickname?: string | null; avatar?: string | null; visibility?: 'visible' | 'invisible' }): Promise<MeProfile> {
   const res = await fetch(`${env.apiUrl}/users/me`, {
     method: 'PATCH',
     headers: authHeaders(),

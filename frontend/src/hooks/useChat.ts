@@ -16,7 +16,9 @@ function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean; unread?:
     isBlocked: item.isBlocked,
     isPinned: item.isPinned,
     isArchived: item.isArchived,
+    avatar: item.avatar ?? null,
     image: item.image,
+    chatBackground: item.chatBackground ?? null,
     lastMessage: item.lastMessage,
     lastMessageTime: item.lastMessageTime ?? undefined,
     unread: item.unread ?? 0,
@@ -24,11 +26,19 @@ function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean; unread?:
   }
 }
 
+export interface UseChatOptions {
+  /** Solo cuando devuelve true se marcará el chat como leído al recibir mensajes (p. ej. cuando el panel de chat está visible, no en lista móvil). */
+  getIsChatPanelVisible?: () => boolean
+}
+
 /**
  * Hook que encapsula el estado del chat y la lógica de Socket.io.
  * Carga la lista de chats desde la API y permite abrir chat directo.
  */
-export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) {
+export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, options: UseChatOptions = {}) {
+  const { getIsChatPanelVisible } = options
+  const getIsChatPanelVisibleRef = useRef(getIsChatPanelVisible)
+  getIsChatPanelVisibleRef.current = getIsChatPanelVisible
   const [chats, setChats] = useState<Chat[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [chatsLoading, setChatsLoading] = useState(true)
@@ -106,6 +116,7 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
         reactions?: Array<{ userId: string; emoji: string }>
         senderId?: string | null
         senderName?: string
+        senderAvatar?: string | null
         timestamp: number
       }): Message {
     return {
@@ -120,6 +131,7 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
       reactions: m.reactions ?? [],
       senderId: m.senderId ?? '',
       senderName: m.senderName ?? 'Anónimo',
+      senderAvatar: m.senderAvatar ?? null,
       timestamp: m.timestamp,
     }
   }
@@ -188,13 +200,15 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
         reactions: msg.reactions,
         senderId: msg.senderId,
         senderName: msg.senderName,
+        senderAvatar: (msg as { senderAvatar?: string | null }).senderAvatar,
         timestamp: msg.timestamp,
       })
       const lastMessagePreview =
         (msg.text && msg.text.trim()) ||
         (msg.type === 'image' ? 'Imagen' : msg.type === 'sticker' ? 'Sticker' : '')
       const isInThisChat = currentChatIdRef.current === msg.chatId
-      if (isInThisChat) {
+      const isPanelVisible = !getIsChatPanelVisibleRef.current || getIsChatPanelVisibleRef.current()
+      if (isInThisChat && isPanelVisible) {
         socket.emit(SOCKET_EVENTS.MARK_CHAT_READ, msg.chatId)
       }
       setChats((prev) => {
@@ -437,6 +451,15 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     [currentChatId]
   )
 
+  const updateChatBackground = useCallback(async (chatId: string, chatBackground: string | null) => {
+    try {
+      await api.updateChatBackground(chatId, chatBackground)
+      setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, chatBackground } : c)))
+    } catch {
+      // error handled by caller
+    }
+  }, [])
+
   return {
     chats,
     currentChatId,
@@ -461,5 +484,6 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME) 
     archiveChat,
     unarchiveChat,
     createGroupAndSelect,
+    updateChatBackground,
   }
 }

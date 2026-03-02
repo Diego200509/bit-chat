@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react'
 import { useAuth } from './context/AuthContext'
 import { useChat } from './hooks/useChat'
+import { useTheme } from './hooks/useTheme'
 import { useBlocked } from './hooks/useBlocked'
+import { useOnlineUsers } from './hooks/useOnlineUsers'
 import { AuthScreen } from './components/auth'
 import { ChatList, ChatWindow, EditProfileModal } from './components/chat'
 import { FriendsPanel } from './components/friends'
@@ -12,6 +14,9 @@ function ChatLayout() {
   const { user, logout, updateProfile } = useAuth()
   const { blockedIds, blockUser, unblockUser } = useBlocked()
   const displayName = user?.nickname?.trim() || user?.name || 'Yo'
+  const { theme, toggleTheme } = useTheme()
+  const [mobileView, setMobileView] = useState<MobileView>('list')
+  const onlineUserIds = useOnlineUsers()
   const {
     chats,
     currentChatId,
@@ -33,9 +38,10 @@ function ChatLayout() {
     editMessage,
     pinMessage,
     unpinMessage,
-  } = useChat(user!.id, displayName)
-
-  const [mobileView, setMobileView] = useState<MobileView>('list')
+    updateChatBackground,
+  } = useChat(user!.id, displayName, {
+    getIsChatPanelVisible: () => mobileView === 'chat' || (typeof window !== 'undefined' && window.innerWidth >= 768),
+  })
   const [showFriendsPanel, setShowFriendsPanel] = useState(false)
   const [showEditProfile, setShowEditProfile] = useState(false)
 
@@ -97,6 +103,7 @@ function ChatLayout() {
             currentChatId={currentChatId}
             onSelectChat={handleSelectChat}
             currentUserName={displayName}
+            currentUserAvatar={user?.avatar}
             onLogout={logout}
             onOpenFriends={handleOpenFriends}
             onEditProfile={() => setShowEditProfile(true)}
@@ -106,6 +113,8 @@ function ChatLayout() {
             onArchiveChat={archiveChat}
             onUnarchiveChat={unarchiveChat}
             onCreateGroup={createGroupAndSelect}
+            theme={theme}
+            onToggleTheme={toggleTheme}
           />
         )}
       </aside>
@@ -123,19 +132,23 @@ function ChatLayout() {
           onEditMessage={editMessage}
           onPinMessage={pinMessage}
           onUnpinMessage={unpinMessage}
+          onUpdateChatBackground={updateChatBackground}
           currentUserId={currentUserId}
           onBack={handleBackToList}
           onBlockUser={handleBlockUser}
           onUnblockUser={handleUnblockUser}
           blockedUserIds={blockedIds}
+          otherUserOnline={currentChat?.otherUserId ? onlineUserIds.has(currentChat.otherUserId) : undefined}
         />
       </main>
       {showEditProfile && user && (
         <EditProfileModal
           currentName={user.name}
           currentNickname={user.nickname?.trim() ?? ''}
+          currentAvatar={user.avatar}
+          currentVisibility={user.visibility ?? 'visible'}
           onClose={() => setShowEditProfile(false)}
-          onSave={async (nickname: string) => updateProfile({ nickname: nickname || null })}
+          onSave={async (updates) => updateProfile({ nickname: updates.nickname || null, avatar: updates.avatar ?? undefined, visibility: updates.visibility })}
         />
       )}
       {!connected && (

@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { SOCKET_EVENTS } from '../constants/socket'
 import { socket } from '../lib/socket'
 import * as api from '../lib/api'
 
@@ -24,7 +25,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
-  updateProfile: (updates: { nickname?: string | null }) => Promise<void>
+  updateProfile: (updates: { nickname?: string | null; avatar?: string | null; visibility?: 'visible' | 'invisible' }) => Promise<void>
   error: string | null
   clearError: () => void
 }
@@ -137,7 +138,7 @@ saveStored(auth)
     setUser(null)
   }, [])
 
-  const updateProfile = useCallback(async (updates: { nickname?: string | null }) => {
+  const updateProfile = useCallback(async (updates: { nickname?: string | null; avatar?: string | null; visibility?: 'visible' | 'invisible' }) => {
     if (!user) return
     const updated = await api.updateMe(updates)
     const nextUser: api.AuthUser = {
@@ -145,9 +146,13 @@ saveStored(auth)
       name: updated.name ?? user.name,
       nickname: 'nickname' in updated ? updated.nickname : user.nickname,
       avatar: updated.avatar ?? user.avatar,
+      visibility: updated.visibility ?? user.visibility,
     }
     setUser(nextUser)
     saveStored({ token: token!, user: nextUser })
+    if (updates.visibility !== undefined) {
+      socket.emit(SOCKET_EVENTS.REFRESH_ONLINE_LIST)
+    }
   }, [user, token])
 
   const value: AuthContextValue = {

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import type { Chat } from '../../types/chat'
 import { CreateGroupModal } from './CreateGroupModal'
+import { env } from '../../config/env'
 
 function LastMessagePreview({ text }: { text: string }) {
   const ref = useRef<HTMLParagraphElement>(null)
@@ -24,7 +25,7 @@ function LastMessagePreview({ text }: { text: string }) {
   const preview = (
     <p
       ref={ref}
-      className="text-sm text-slate-500 truncate max-w-[180px] sm:max-w-[220px]"
+      className="text-sm text-slate-500 [data-theme=light]:text-slate-600 truncate max-w-[180px] sm:max-w-[220px]"
     >
       {text}
     </p>
@@ -52,6 +53,7 @@ interface ChatListProps {
   currentChatId: string | null
   onSelectChat: (chatId: string) => void
   currentUserName?: string
+  currentUserAvatar?: string | null
   onLogout?: () => void
   onOpenFriends?: () => void
   onEditProfile?: () => void
@@ -61,6 +63,8 @@ interface ChatListProps {
   onArchiveChat?: (chatId: string) => void
   onUnarchiveChat?: (chatId: string) => void
   onCreateGroup?: (name: string, participantIds: string[], image?: string | null) => Promise<void>
+  theme?: 'dark' | 'light'
+  onToggleTheme?: () => void
 }
 
 /**
@@ -73,6 +77,7 @@ export function ChatList({
   currentUserName = 'Yo',
   onLogout,
   onOpenFriends,
+  currentUserAvatar,
   onEditProfile,
   chatsLoading = false,
   onPinChat,
@@ -80,6 +85,8 @@ export function ChatList({
   onArchiveChat,
   onUnarchiveChat,
   onCreateGroup,
+  theme = 'dark',
+  onToggleTheme,
 }: ChatListProps) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
@@ -116,11 +123,21 @@ export function ChatList({
                 <PinIcon className="w-4 h-4" />
               </span>
             )}
-            <div className="w-12 h-12 rounded-full bg-bitchat-blue-dark flex items-center justify-center text-bitchat-cyan font-semibold flex-shrink-0">
-              {chat.name.charAt(0).toUpperCase()}
+            <div className="w-12 h-12 rounded-full bg-bitchat-blue-dark flex items-center justify-center text-bitchat-cyan font-semibold flex-shrink-0 overflow-hidden">
+              {(() => {
+                const avatarUrl = chat.avatar || chat.image
+                const url = avatarUrl && avatarUrl.trim()
+                  ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')
+                      ? avatarUrl
+                      : `${env.apiUrl.replace(/\/$/, '')}${avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`}`)
+                  : null
+                return url
+                  ? <img src={url} alt="" className="w-full h-full object-cover" />
+                  : chat.name.charAt(0).toUpperCase()
+              })()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-slate-100 truncate">{chat.name}</p>
+              <p className="font-medium text-bitchat-fg truncate">{chat.name}</p>
               {chat.lastMessage && (
                 <LastMessagePreview text={chat.lastMessage} />
               )}
@@ -213,17 +230,21 @@ export function ChatList({
     <div className="flex h-full min-h-0 w-full flex-col">
       <header className="flex shrink-0 items-center gap-2 border-b border-bitchat-border p-4 safe-t">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bitchat-cyan font-bold text-bitchat-blue-dark text-lg">
-            b
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bitchat-cyan font-bold text-bitchat-blue-dark text-lg overflow-hidden">
+            {currentUserAvatar ? (
+              <img src={currentUserAvatar.startsWith('http') ? currentUserAvatar : `${env.apiUrl.replace(/\/$/, '')}${currentUserAvatar.startsWith('/') ? '' : '/'}${currentUserAvatar}`} alt="" className="w-full h-full object-cover" />
+            ) : (
+              'b'
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-semibold text-bitchat-cyan">BitChat</h1>
             {onEditProfile ? (
-              <button type="button" onClick={onEditProfile} className="truncate block text-xs text-slate-400 hover:text-bitchat-cyan text-left w-full">
+              <button type="button" onClick={onEditProfile} className="truncate block text-xs text-bitchat-fg/80 hover:text-bitchat-cyan text-left w-full">
                 {currentUserName}
               </button>
             ) : (
-              <p className="truncate text-xs text-slate-400">{currentUserName}</p>
+              <p className="truncate text-xs text-bitchat-fg/80">{currentUserName}</p>
             )}
           </div>
         </div>
@@ -247,6 +268,17 @@ export function ChatList({
             aria-label="Amigos"
           >
             <PeopleIcon />
+          </button>
+        )}
+        {onToggleTheme && (
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
+            title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+            aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+          >
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
         )}
         {onLogout && (
@@ -343,6 +375,22 @@ function PeopleIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
       <path fillRule="evenodd" d="M8.25 6.75a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0ZM15.75 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM2.25 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM6.31 15.117A6.745 6.745 0 0 1 12 12a6.745 6.745 0 0 1 6.709 7.498.75.75 0 0 1-.372.568A12.696 12.696 0 0 1 12 21c-2.513 0-4.746-.797-6.75-2.257a6.75 6.75 0 0 1-.372-.568 6.787 6.787 0 0 1 1.019-4.38Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function SunIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z" />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path fillRule="evenodd" d="M9.528 1.718a.75.75 0 0 1 .162.819A8.97 8.97 0 0 0 9 6a9 9 0 0 0 9 9 8.97 8.97 0 0 0 3.463-.69.75.75 0 0 1 .981.98 10.503 10.503 0 0 1-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 0 1 .818.162Z" clipRule="evenodd" />
     </svg>
   )
 }

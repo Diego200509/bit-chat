@@ -14,6 +14,7 @@ module.exports = {
   PIN_MESSAGE: 'pin_message',
   UNPIN_MESSAGE: 'unpin_message',
   MARK_CHAT_READ: 'mark_chat_read',
+  REFRESH_ONLINE_LIST: 'refresh_online_list',
 
   // Servidor -> Cliente
   NEW_MESSAGE: 'new_message',

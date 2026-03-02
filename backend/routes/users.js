@@ -5,19 +5,33 @@ const { User } = require('../models');
 const router = express.Router();
 router.use(authMiddleware);
 
-/** PATCH /users/me - Actualizar perfil (nickname). Body: { nickname?: string | null } */
+/** PATCH /users/me - Actualizar perfil. Body: { nickname?, avatar?, visibility? } */
 router.patch('/me', async (req, res) => {
   try {
-    const { nickname } = req.body || {};
+    const body = req.body || {};
     const update = {};
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'nickname')) {
-      update.nickname = typeof nickname === 'string' ? (nickname.trim() || null) : null;
+    if (Object.prototype.hasOwnProperty.call(body, 'nickname')) {
+      update.nickname = typeof body.nickname === 'string' ? (body.nickname.trim() || null) : null;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'avatar')) {
+      update.avatar = typeof body.avatar === 'string' ? (body.avatar.trim() || null) : null;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'visibility')) {
+      const v = body.visibility;
+      update.visibility = v === 'invisible' || v === 'visible' ? v : 'visible';
     }
     if (Object.keys(update).length === 0) return res.json({ ok: true });
     const user = await User.findByIdAndUpdate(req.userId, { $set: update }, { returnDocument: 'after' })
-      .select('name email nickname avatar')
+      .select('name email nickname avatar visibility')
       .lean();
-    return res.json({ id: user._id.toString(), name: user.name, nickname: user.nickname, email: user.email, avatar: user.avatar });
+    return res.json({
+      id: user._id.toString(),
+      name: user.name,
+      nickname: user.nickname,
+      email: user.email,
+      avatar: user.avatar,
+      visibility: user.visibility,
+    });
   } catch (err) {
     console.error('Update me error:', err);
     res.status(500).json({ error: 'Error al actualizar' });

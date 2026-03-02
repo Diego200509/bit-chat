@@ -17,9 +17,13 @@
   --color-bitchat-blue-soft: #38bdf8;
   /* Bordes y divisores sutiles */
   --color-bitchat-border: #1e293b;
+  /* Texto principal */
+  --color-bitchat-fg: #f1f5f9;
   /* Mensajes enviados vs recibidos */
   --color-bitchat-sent: #0e7490;
   --color-bitchat-received: #1e293b;
+  --color-bitchat-received-fg: #e2e8f0;
+  --color-bitchat-received-muted: #94a3b8;
 }
 
 body {
@@ -27,10 +31,22 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   background-color: var(--color-bitchat-bg);
-  color: #f1f5f9;
+  color: var(--color-bitchat-fg);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
   overflow-x: hidden;
+}
+
+/* Tema claro (toggle en preferencias) */
+[data-theme="light"] {
+  --color-bitchat-bg: #f1f5f9;
+  --color-bitchat-sidebar: #e2e8f0;
+  --color-bitchat-panel: #ffffff;
+  --color-bitchat-border: #cbd5e1;
+  --color-bitchat-received: #e2e8f0;
+  --color-bitchat-received-fg: #0f172a;
+  --color-bitchat-received-muted: #475569;
+  --color-bitchat-fg: #0f172a;
 }
 
 #root {

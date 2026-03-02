@@ -15,7 +15,7 @@ function LongTextContent({ text, isOwn }: { text: string; isOwn: boolean }) {
     : text
   const linkClass = isOwn
     ? 'text-blue-800 hover:text-blue-900 hover:underline'
-    : 'text-bitchat-cyan hover:text-bitchat-cyan-bright hover:underline'
+    : 'text-bitchat-cyan hover:text-bitchat-cyan-bright hover:underline [.bg-bitchat-received_&]:text-bitchat-received-fg [.bg-bitchat-received_&]:hover:opacity-90'
   return (
     <span className="block">
       <p className="text-sm break-words whitespace-pre-wrap">{displayText}</p>
@@ -165,11 +165,11 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
           } ${
             isOwn
               ? 'rounded-br-md bg-bitchat-cyan text-bitchat-blue-dark'
-              : 'rounded-bl-md bg-bitchat-received text-slate-200'
+              : 'rounded-bl-md bg-bitchat-received text-bitchat-received-fg'
           }`}
         >
           {!isOwn && (
-            <p className="text-xs text-bitchat-cyan-bright mb-0.5 font-medium">
+            <p className="text-xs text-bitchat-cyan-bright mb-0.5 font-medium [.bg-bitchat-received_&]:text-bitchat-received-fg">
               {message.senderName}
             </p>
           )}
@@ -229,11 +229,11 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
               </span>
             )}
             {message.editedAt != null && message.editedAt > 0 && (
-              <span className={`text-[10px] ${isOwn ? 'text-bitchat-blue-dark/70' : 'text-slate-400'}`}>editado</span>
+              <span className={`text-[10px] ${isOwn ? 'text-bitchat-blue-dark/70' : 'text-bitchat-received-muted'}`}>editado</span>
             )}
             <p
               className={`text-[10px] ${hasReactions ? 'ml-1' : ''} ${
-                isOwn ? 'text-bitchat-blue-dark/70' : 'text-slate-400'
+                isOwn ? 'text-bitchat-blue-dark/70' : 'text-bitchat-received-muted'
               }`}
             >
               {formatTime(message.timestamp)}

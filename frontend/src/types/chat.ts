@@ -26,6 +26,8 @@ export interface Message {
   reactions?: MessageReaction[]
   senderId: string
   senderName: string
+  /** URL o path de la foto de perfil del remitente (para mostrar junto al mensaje) */
+  senderAvatar?: string | null
   timestamp: number
   /** true = enviado por el usuario actual */
   isOwn?: boolean
@@ -46,6 +48,8 @@ export interface Chat {
   lastMessage?: string
   lastMessageTime?: number
   unread?: number
+  /** Fondo del chat (URL o clave de preset) */
+  chatBackground?: string | null
   /** Mensajes de la conversación (se cargan al abrir el chat) */
   messages: Message[]
 }

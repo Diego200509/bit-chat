@@ -50,10 +50,10 @@
 ---
 
 ## Fase 6 – Perfil y preferencias
-- [ ] **Foto de perfil**: subir imagen, `User.avatar`
-- [ ] **Fondos de chat**: `Chat.chatBackground`, selector en UI
-- [ ] **Modo oscuro**: tema en frontend (ya tienes oscuro; añadir toggle y persistir)
-- [ ] **Modo invisible**: usar `User.visibility`, no mostrar “en línea” a otros
+- [x] **Foto de perfil**: subir imagen, `User.avatar`
+- [x] **Fondos de chat**: `Chat.chatBackground`, selector en UI
+- [x] **Modo oscuro**: tema en frontend (ya tienes oscuro; añadir toggle y persistir)
+- [x] **Modo invisible**: usar `User.visibility`, no mostrar “en línea” a otros
 
 ---
 

@@ -35,11 +35,13 @@ async function saveMessage(chatId, senderId, senderName, opts = {}) {
   const isObjectId = mongoose.Types.ObjectId.isValid(senderId) && new mongoose.Types.ObjectId(senderId).toString() === senderId;
   let senderObjectId = null;
   let name = senderName || 'Anónimo';
+  let senderAvatar = null;
   if (isObjectId) {
-    const user = await User.findById(senderId).select('name nickname');
+    const user = await User.findById(senderId).select('name nickname avatar').lean();
     if (user) {
       senderObjectId = user._id;
       name = user.nickname?.trim() || user.name;
+      senderAvatar = user.avatar || null;
     }
   }
 
@@ -55,10 +57,10 @@ async function saveMessage(chatId, senderId, senderName, opts = {}) {
   });
 
   const resolvedChatId = (chatId === 'chat-1' || chatId === 'general') ? chatId : chat._id.toString();
-  return messageToPayload(msg, resolvedChatId, name);
+  return messageToPayload(msg, resolvedChatId, name, null, senderAvatar);
 }
 
-function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallback = null) {
+function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallback = null, senderAvatar = null) {
   let senderId = null;
   if (msg.sender) {
     senderId = typeof msg.sender === 'object' && msg.sender._id != null
@@ -70,6 +72,7 @@ function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallba
   const type = (msg.type && ['text', 'image', 'sticker', 'emoji'].includes(msg.type)) ? msg.type : 'text';
   const stickerUrl = msg.stickerUrl != null && String(msg.stickerUrl).trim() ? String(msg.stickerUrl).trim() : null;
   const imageUrl = msg.imageUrl != null && String(msg.imageUrl).trim() ? String(msg.imageUrl).trim() : null;
+  const avatar = senderAvatar ?? (msg.sender && msg.sender.avatar) ?? null;
   return {
     id: msg._id.toString(),
     chatId: resolvedChatId,
@@ -83,6 +86,7 @@ function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallba
     reactions: (msg.reactions || []).map((r) => ({ userId: r.userId.toString(), emoji: r.emoji })),
     senderId,
     senderName: senderDisplayName ?? msg.senderName ?? 'Anónimo',
+    senderAvatar: avatar && String(avatar).trim() ? String(avatar).trim() : null,
     timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
   };
 }
@@ -98,7 +102,7 @@ async function getMessageHistory(chatId, limit = 100, currentUserId = null) {
   let messages = await Message.find({ chat: chat._id })
     .sort({ createdAt: 1 })
     .limit(limit * 2)
-    .populate('sender', 'name nickname')
+    .populate('sender', 'name nickname avatar')
     .lean();
 
   if (currentUserId) {
@@ -113,7 +117,8 @@ async function getMessageHistory(chatId, limit = 100, currentUserId = null) {
 
   const resolvedChatId = (chatId === 'chat-1' || chatId === 'general') ? chatId : chat._id.toString();
   const getSenderName = (m) => (m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'));
-  const list = messages.map((m) => messageToPayload(m, resolvedChatId, getSenderName(m)));
+  const getSenderAvatar = (m) => (m.sender && m.sender.avatar ? m.sender.avatar : null);
+  const list = messages.map((m) => messageToPayload(m, resolvedChatId, getSenderName(m), null, getSenderAvatar(m)));
   list.sort((a, b) => (a.pinned ? 0 : 1) - (b.pinned ? 0 : 1) || (a.timestamp - b.timestamp));
   return list;
 }
@@ -155,6 +160,7 @@ async function getChatsForUser(userId, limit = 50) {
       name: 'General',
       type: 'group',
       image: general.image,
+      chatBackground: general.chatBackground || null,
       isPinned: pinned,
       isArchived: archived,
       lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : ''),
@@ -178,6 +184,8 @@ async function getChatsForUser(userId, limit = 50) {
       name: displayName,
       type: 'direct',
       otherUserId: other?._id?.toString(),
+      avatar: other?.avatar || null,
+      chatBackground: c.chatBackground || null,
       isPinned: pinned,
       isArchived: archived,
       lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : ''),
@@ -199,6 +207,7 @@ async function getChatsForUser(userId, limit = 50) {
       name: c.name || 'Grupo',
       type: 'group',
       image: c.image,
+      chatBackground: c.chatBackground || null,
       isPinned: pinned,
       isArchived: archived,
       lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : ''),
@@ -249,11 +258,15 @@ async function toggleReaction(messageId, userId, emoji) {
   await msg.save();
   const resolvedChatId = msg.chat.toString();
   let senderName = msg.senderName || 'Anónimo';
+  let senderAvatar = null;
   if (msg.sender) {
-    const u = await User.findById(msg.sender).select('name nickname').lean();
-    senderName = u ? (u.nickname?.trim() || u.name) : senderName;
+    const u = await User.findById(msg.sender).select('name nickname avatar').lean();
+    if (u) {
+      senderName = u.nickname?.trim() || u.name;
+      senderAvatar = u.avatar || null;
+    }
   }
-  return messageToPayload(msg, resolvedChatId, senderName);
+  return messageToPayload(msg, resolvedChatId, senderName, null, senderAvatar);
 }
 
 /**
@@ -270,11 +283,15 @@ async function editMessage(messageId, userId, text) {
   await msg.save();
   const resolvedChatId = msg.chat.toString();
   let senderName = msg.senderName || 'Anónimo';
+  let senderAvatar = null;
   if (msg.sender) {
-    const u = await User.findById(msg.sender).select('name nickname').lean();
-    senderName = u ? (u.nickname?.trim() || u.name) : senderName;
+    const u = await User.findById(msg.sender).select('name nickname avatar').lean();
+    if (u) {
+      senderName = u.nickname?.trim() || u.name;
+      senderAvatar = u.avatar || null;
+    }
   }
-  return messageToPayload(msg, resolvedChatId, senderName);
+  return messageToPayload(msg, resolvedChatId, senderName, null, senderAvatar);
 }
 
 /**
@@ -311,22 +328,30 @@ async function pinMessage(messageId, userId) {
     previous.pinnedBy = null;
     await previous.save();
     let prevSenderName = previous.senderName || 'Anónimo';
+    let prevSenderAvatar = null;
     if (previous.sender) {
-      const u = await User.findById(previous.sender).select('name nickname').lean();
-      prevSenderName = u ? (u.nickname?.trim() || u.name) : prevSenderName;
+      const u = await User.findById(previous.sender).select('name nickname avatar').lean();
+      if (u) {
+        prevSenderName = u.nickname?.trim() || u.name;
+        prevSenderAvatar = u.avatar || null;
+      }
     }
-    unpinnedPayload = messageToPayload(previous, chatId, prevSenderName);
+    unpinnedPayload = messageToPayload(previous, chatId, prevSenderName, null, prevSenderAvatar);
   }
   await Message.updateMany({ chat: msg.chat, _id: { $ne: msg._id } }, { $set: { pinned: false, pinnedBy: null } });
   msg.pinned = true;
   msg.pinnedBy = new mongoose.Types.ObjectId(userId);
   await msg.save();
   let senderName = msg.senderName || 'Anónimo';
+  let senderAvatar = null;
   if (msg.sender) {
-    const u = await User.findById(msg.sender).select('name nickname').lean();
-    senderName = u ? (u.nickname?.trim() || u.name) : senderName;
+    const u = await User.findById(msg.sender).select('name nickname avatar').lean();
+    if (u) {
+      senderName = u.nickname?.trim() || u.name;
+      senderAvatar = u.avatar || null;
+    }
   }
-  const pinnedPayload = messageToPayload(msg, chatId, senderName);
+  const pinnedPayload = messageToPayload(msg, chatId, senderName, null, senderAvatar);
   return { pinned: pinnedPayload, unpinned: unpinnedPayload };
 }
 
@@ -337,17 +362,32 @@ async function unpinMessage(messageId, userId) {
   if (!messageId || !userId) return null;
   const msg = await Message.findById(messageId);
   if (!msg) return null;
-  if (!msg.pinned) return messageToPayload(msg, msg.chat.toString(), msg.senderName || 'Anónimo');
+  if (!msg.pinned) {
+    let senderName = msg.senderName || 'Anónimo';
+    let senderAvatar = null;
+    if (msg.sender) {
+      const u = await User.findById(msg.sender).select('name nickname avatar').lean();
+      if (u) {
+        senderName = u.nickname?.trim() || u.name;
+        senderAvatar = u.avatar || null;
+      }
+    }
+    return messageToPayload(msg, msg.chat.toString(), senderName, null, senderAvatar);
+  }
   msg.pinned = false;
   msg.pinnedBy = null;
   await msg.save();
   const resolvedChatId = msg.chat.toString();
   let senderName = msg.senderName || 'Anónimo';
+  let senderAvatar = null;
   if (msg.sender) {
-    const u = await User.findById(msg.sender).select('name nickname').lean();
-    senderName = u ? (u.nickname?.trim() || u.name) : senderName;
+    const u = await User.findById(msg.sender).select('name nickname avatar').lean();
+    if (u) {
+      senderName = u.nickname?.trim() || u.name;
+      senderAvatar = u.avatar || null;
+    }
   }
-  return messageToPayload(msg, resolvedChatId, senderName);
+  return messageToPayload(msg, resolvedChatId, senderName, null, senderAvatar);
 }
 
 module.exports = {

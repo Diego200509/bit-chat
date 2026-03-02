@@ -128,4 +128,23 @@ router.post('/:id/unarchive', async (req, res) => {
   }
 });
 
+/** PATCH /chats/:id - Actualizar chat (p. ej. fondo). Body: { chatBackground?: string | null } */
+router.patch('/:id', async (req, res) => {
+  try {
+    const chat = await resolveChatId(req.params.id, req.userId);
+    if (!chat) return res.status(404).json({ error: 'Chat no encontrado' });
+    const { chatBackground } = req.body || {};
+    const update = {};
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'chatBackground')) {
+      update.chatBackground = typeof chatBackground === 'string' ? (chatBackground.trim() || null) : null;
+    }
+    if (Object.keys(update).length === 0) return res.json({ ok: true });
+    await Chat.findByIdAndUpdate(chat._id, { $set: update });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Update chat error:', err);
+    res.status(500).json({ error: 'Error al actualizar' });
+  }
+});
+
 module.exports = router;

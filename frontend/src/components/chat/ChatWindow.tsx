@@ -1,7 +1,15 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import type { Chat } from '../../types/chat'
+import { env } from '../../config/env'
 import { Message } from './Message'
 import { MessageInput } from './MessageInput'
+
+const CHAT_BACKGROUND_PRESETS: Record<string, string> = {
+  default: '',
+  warm: 'linear-gradient(135deg, #1c1917 0%, #292524 50%, #1c1917 100%)',
+  cool: 'linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+  subtle: 'linear-gradient(180deg, #0a0a0a 0%, #171717 100%)',
+}
 
 interface ChatWindowProps {
   chat: Chat | null
@@ -12,11 +20,14 @@ interface ChatWindowProps {
   onEditMessage?: (messageId: string, text: string) => void
   onPinMessage?: (messageId: string) => void
   onUnpinMessage?: (messageId: string) => void
+  onUpdateChatBackground?: (chatId: string, chatBackground: string | null) => void
   currentUserId: string
   onBack?: () => void
   onBlockUser?: (userId: string) => void
   onUnblockUser?: (userId: string) => void
   blockedUserIds?: string[]
+  /** Solo en chat directo: true = en línea, false = desconectado, undefined = grupo o sin dato */
+  otherUserOnline?: boolean
 }
 
 /**
@@ -31,15 +42,19 @@ export function ChatWindow({
   onEditMessage,
   onPinMessage,
   onUnpinMessage,
+  onUpdateChatBackground,
   currentUserId,
   onBack,
   onBlockUser,
   onUnblockUser,
   blockedUserIds = [],
+  otherUserOnline,
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const [showBackgroundPicker, setShowBackgroundPicker] = useState(false)
+  const bgPickerRef = useRef<HTMLDivElement>(null)
 
   const scrollToMessage = useCallback((messageId: string) => {
     const container = messagesContainerRef.current
@@ -57,6 +72,15 @@ export function ChatWindow({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chat?.messages])
+
+  useEffect(() => {
+    if (!showBackgroundPicker) return
+    const close = (e: MouseEvent) => {
+      if (bgPickerRef.current && !bgPickerRef.current.contains(e.target as Node)) setShowBackgroundPicker(false)
+    }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [showBackgroundPicker])
 
   if (!chat) {
     return (
@@ -76,6 +100,9 @@ export function ChatWindow({
   const pinned = messagesWithOwn.filter((m) => m.pinned)
   // Orden cronológico para que el mensaje fijado aparezca en su posición real del historial
   const messagesChronological = [...messagesWithOwn].sort((a, b) => a.timestamp - b.timestamp)
+  const chatBgStyle = chat.chatBackground && CHAT_BACKGROUND_PRESETS[chat.chatBackground]
+    ? CHAT_BACKGROUND_PRESETS[chat.chatBackground]
+    : undefined
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bitchat-bg">
@@ -90,20 +117,71 @@ export function ChatWindow({
             <BackIcon />
           </button>
         )}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bitchat-blue-dark text-bitchat-cyan font-semibold">
-          {chat.name.charAt(0).toUpperCase()}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bitchat-blue-dark text-bitchat-cyan font-semibold">
+          {(() => {
+            const avatarUrl = chat.avatar || chat.image
+            const url = avatarUrl && avatarUrl.trim()
+              ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')
+                  ? avatarUrl
+                  : `${env.apiUrl.replace(/\/$/, '')}${avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`}`)
+              : null
+            return url
+              ? <img src={url} alt="" className="h-full w-full object-cover" />
+              : chat.name.charAt(0).toUpperCase()
+          })()}
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate font-semibold text-slate-100">{chat.name}</h2>
-          <p className="text-xs text-slate-500">BitChat</p>
+          <h2 className="truncate font-semibold text-bitchat-fg">{chat.name}</h2>
+          <p className="text-xs text-bitchat-fg/80">
+            {otherUserOnline === true ? 'En línea' : otherUserOnline === false ? 'Desconectado' : 'BitChat'}
+          </p>
         </div>
-        {chat.otherUserId && (onBlockUser || onUnblockUser) && (
-          <BlockUnblockButton
-            otherUserId={chat.otherUserId}
-            blockedUserIds={blockedUserIds}
-            onBlock={onBlockUser}
-            onUnblock={onUnblockUser}
-          />
+        {(onUpdateChatBackground || (chat.otherUserId && (onBlockUser || onUnblockUser))) && (
+          <div className="flex items-center gap-1">
+            {onUpdateChatBackground && (
+              <div className="relative" ref={showBackgroundPicker ? bgPickerRef : undefined}>
+                <button
+                  type="button"
+                  onClick={() => setShowBackgroundPicker((v) => !v)}
+                  className="rounded-lg p-2 text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-bitchat-cyan"
+                  title="Fondo del chat"
+                  aria-label="Fondo del chat"
+                >
+                  <WallpaperIcon />
+                </button>
+                {showBackgroundPicker && (
+                  <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-2 shadow-lg">
+                    <p className="px-3 py-1 text-xs text-slate-500">Fondo</p>
+                    {Object.entries(CHAT_BACKGROUND_PRESETS).map(([key, value]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          onUpdateChatBackground(chat.id, key === 'default' ? null : key)
+                          setShowBackgroundPicker(false)
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-bitchat-panel"
+                      >
+                        <span
+                          className="h-5 w-8 rounded border border-bitchat-border shrink-0"
+                          style={value ? { background: value } : { background: 'var(--color-bitchat-bg)' }}
+                        />
+                        {key === 'default' ? 'Por defecto' : key === 'warm' ? 'Cálido' : key === 'cool' ? 'Fresco' : 'Sutil'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {chat.otherUserId && (onBlockUser || onUnblockUser) && (
+              <BlockUnblockButton
+                otherUserId={chat.otherUserId}
+                blockedUserIds={blockedUserIds}
+                onBlock={onBlockUser}
+                onUnblock={onUnblockUser}
+              />
+            )}
+          </div>
         )}
       </header>
 
@@ -138,7 +216,11 @@ export function ChatWindow({
         )
       })()}
 
-      <div ref={messagesContainerRef} className="chat-messages-scroll min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain">
+      <div
+        ref={messagesContainerRef}
+        className="chat-messages-scroll min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain"
+        style={chatBgStyle ? { background: chatBgStyle } : undefined}
+      >
         {messagesChronological.map((message) => (
           <div
             key={message.id}
@@ -193,8 +275,8 @@ function BlockUnblockButton({
       onClick={() => (isBlocked ? onUnblock?.(otherUserId) : onBlock?.(otherUserId))}
       className={`rounded-lg p-2 transition-colors ${
         isBlocked
-          ? 'text-slate-400 hover:bg-bitchat-sidebar hover:text-bitchat-cyan'
-          : 'text-slate-400 hover:bg-bitchat-sidebar hover:text-red-400'
+          ? 'text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-bitchat-cyan'
+          : 'text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-red-400'
       }`}
       title={isBlocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
       aria-label={isBlocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
@@ -232,6 +314,14 @@ function PinIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
       <path fillRule="evenodd" d="M16.5 3.75a3.75 3.75 0 0 0-2.25 6.72 3.75 3.75 0 0 0 1.5 2.28v7.5h3v-7.5a3.75 3.75 0 0 0 1.5-2.28 3.75 3.75 0 0 0-2.25-6.72ZM12 15a3 3 0 0 1-3-3V6a3 3 0 1 1 6 0v6a3 3 0 0 1-3 3Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function WallpaperIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path fillRule="evenodd" d="M1.5 6a2.25 2.25 0 0 1 2.25-2.25h16.5A2.25 2.25 0 0 1 22.5 6v12a2.25 2.25 0 0 1-2.25 2.25H3.75A2.25 2.25 0 0 1 1.5 18V6ZM3 16.06V18h6v-6.06l-2.97 2.97a.75.75 0 0 1-1.06 0L3 16.06Zm10.5-1.06 2.25 2.25v.001h.001l2.25-2.25v-6.5h-4.5v6.5Zm-6.75-6.75 2.25 2.25v6.5H3v-6.5l2.25-2.25a.75.75 0 0 1 1.06 0Zm1.06 0 2.97-2.97a.75.75 0 0 1 1.06 0L14.94 8 12 5.06 9.06 8l2.97 2.97a.75.75 0 0 1 0 1.06L9.06 14l.94.94h6.5v-6.5l-2.25-2.25a.75.75 0 0 1 0-1.06L16.94 5.06 14 2.06l-2.25 2.25a.75.75 0 0 1 0 1.06L14.94 6.5 12 9.44 9.06 6.5l1.06-1.06a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
     </svg>
   )
 }

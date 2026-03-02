@@ -14,6 +14,19 @@ const { User } = require('../models');
 /** Usuarios conectados: socketId -> { userId, userName } */
 const connectedUsers = new Map();
 
+/** Devuelve solo los usuarios conectados que tienen visibility === 'visible' (modo invisible no aparece en línea) */
+async function getVisibleOnlineUsers() {
+  const list = Array.from(connectedUsers.values());
+  const userIds = [...new Set(list.map((u) => u.userId).filter(Boolean))];
+  if (userIds.length === 0) return list;
+  const mongoose = require('mongoose');
+  const users = await User.find({ _id: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) } })
+    .select('visibility')
+    .lean();
+  const visibilityByUserId = Object.fromEntries(users.map((u) => [u._id.toString(), u.visibility || 'visible']));
+  return list.filter((u) => !u.userId || visibilityByUserId[u.userId] === 'visible');
+}
+
 function generateMessageId() {
   return `m-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -53,7 +66,11 @@ function registerSocketHandlers(io) {
       userId: socket.data.userId,
       userName: socket.data.userName,
     });
-    io.emit(EVENTS.USERS_ONLINE, Array.from(connectedUsers.values()));
+    getVisibleOnlineUsers().then((visible) => io.emit(EVENTS.USERS_ONLINE, visible));
+
+    socket.on(EVENTS.REFRESH_ONLINE_LIST, () => {
+      getVisibleOnlineUsers().then((visible) => io.emit(EVENTS.USERS_ONLINE, visible));
+    });
 
     socket.on(EVENTS.JOIN_CHAT, async (chatId) => {
       socket.join(`chat:${chatId}`);
@@ -125,6 +142,7 @@ function registerSocketHandlers(io) {
           reactions: [],
           senderId: userId,
           senderName: userName,
+          senderAvatar: socket.data.userAvatar ?? null,
           timestamp: Date.now(),
         };
       } catch (err) {
@@ -139,6 +157,7 @@ function registerSocketHandlers(io) {
           reactions: [],
           senderId: userId,
           senderName: userName,
+          senderAvatar: socket.data.userAvatar ?? null,
           timestamp: Date.now(),
         };
       }
@@ -219,7 +238,7 @@ function registerSocketHandlers(io) {
 
     socket.on('disconnect', () => {
       connectedUsers.delete(socket.id);
-      io.emit(EVENTS.USERS_ONLINE, Array.from(connectedUsers.values()));
+      getVisibleOnlineUsers().then((visible) => io.emit(EVENTS.USERS_ONLINE, visible));
       console.log('Cliente desconectado:', socket.id);
     });
   });

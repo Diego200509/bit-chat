@@ -14,12 +14,13 @@ async function authMiddleware(socket, next) {
   }
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
-    const user = await User.findById(decoded.userId).select('name');
+    const user = await User.findById(decoded.userId).select('name nickname avatar').lean();
     if (!user) {
       return next(new Error('User not found'));
     }
     socket.data.userId = user._id.toString();
-    socket.data.userName = user.name;
+    socket.data.userName = (user.nickname && user.nickname.trim()) ? user.nickname.trim() : user.name;
+    socket.data.userAvatar = user.avatar || null;
     next();
   } catch (err) {
     next(new Error('Invalid token'));
