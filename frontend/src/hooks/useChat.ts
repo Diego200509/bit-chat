@@ -16,7 +16,7 @@ function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean; unread?:
     isBlocked: item.isBlocked,
     isPinned: item.isPinned,
     isArchived: item.isArchived,
-    avatar: item.avatar ?? null,
+    avatar: item.avatar ?? undefined,
     image: item.image,
     otherUserLastSeen: item.otherUserLastSeen ?? null,
     participants: item.participants,
@@ -48,6 +48,7 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
   const prevChatIdRef = useRef<string | null>(null)
   const currentChatIdRef = useRef<string | null>(currentChatId)
   currentChatIdRef.current = currentChatId
+  const [chatPresenceByChatId, setChatPresenceByChatId] = useState<Record<string, string[]>>({})
 
   const currentChat = currentChatId
     ? chats.find((c) => c.id === currentChatId) ?? null
@@ -111,8 +112,25 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     socket.emit(SOCKET_EVENTS.JOIN_CHAT_ROOMS, chatIds)
   }, [chats])
 
-  // Al abrir un chat: pedir historial y marcar como leído
+  // Presencia por chat: quién tiene abierto cada chat (solo para mostrar "en línea" en grupos)
   useEffect(() => {
+    const onPresence = (payload: { chatId?: string; userIds?: string[] }) => {
+      const { chatId: cId, userIds: ids } = payload
+      if (!cId) return
+      setChatPresenceByChatId((prev) => ({ ...prev, [cId]: ids ?? [] }))
+    }
+    socket.on(SOCKET_EVENTS.CHAT_PRESENCE, onPresence)
+    return () => {
+      socket.off(SOCKET_EVENTS.CHAT_PRESENCE, onPresence)
+    }
+  }, [])
+
+  // Al abrir un chat: salir del anterior, entrar al nuevo, pedir historial y marcar como leído
+  useEffect(() => {
+    const prev = prevChatIdRef.current
+    if (prev && prev !== currentChatId) {
+      socket.emit(SOCKET_EVENTS.LEAVE_CHAT, prev)
+    }
     if (currentChatId) {
       socket.emit(SOCKET_EVENTS.JOIN_CHAT, currentChatId)
       prevChatIdRef.current = currentChatId
@@ -481,6 +499,7 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     chats,
     currentChatId,
     currentChat,
+    chatPresenceByChatId,
     chatsLoading,
     connected,
     currentUserId: userId,

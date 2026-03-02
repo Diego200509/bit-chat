@@ -21,5 +21,6 @@ export const SOCKET_EVENTS = {
   MESSAGE_UPDATED: 'message_updated',
   USERS_ONLINE: 'users_online',
   USER_LAST_SEEN_UPDATED: 'user_last_seen_updated',
+  CHAT_PRESENCE: 'chat_presence',
   CHAT_HISTORY: 'chat_history',
 } as const

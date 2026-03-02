@@ -21,6 +21,7 @@ function ChatLayout() {
     chats,
     currentChatId,
     currentChat,
+    chatPresenceByChatId,
     chatsLoading,
     connected,
     currentUserId,
@@ -139,7 +140,7 @@ function ChatLayout() {
           onUnblockUser={handleUnblockUser}
           blockedUserIds={blockedIds}
           otherUserOnline={currentChat?.otherUserId ? onlineUserIds.has(currentChat.otherUserId) : undefined}
-          onlineUserIds={onlineUserIds}
+          usersInCurrentChat={currentChatId ? (chatPresenceByChatId[currentChatId] ?? []) : []}
         />
       </main>
       {showEditProfile && user && (

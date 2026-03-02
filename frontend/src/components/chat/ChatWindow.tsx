@@ -42,7 +42,7 @@ function getChatHeaderSubtitle(
   chat: Chat,
   currentUserId: string,
   otherUserOnline: boolean | undefined,
-  onlineUserIds: Set<string>
+  usersInCurrentChat: string[]
 ): string {
   if (chat.otherUserId != null) {
     if (otherUserOnline === true) return 'En línea'
@@ -50,8 +50,9 @@ function getChatHeaderSubtitle(
     return 'Desconectado'
   }
   if (chat.participants && chat.participants.length > 0) {
+    const inChatSet = new Set(usersInCurrentChat)
     const onlineInGroup = chat.participants.filter(
-      (p) => p.id !== currentUserId && onlineUserIds.has(p.id)
+      (p) => p.id !== currentUserId && inChatSet.has(p.id)
     )
     if (onlineInGroup.length === 0) return 'Nadie en línea'
     if (onlineInGroup.length <= 3) {
@@ -79,8 +80,8 @@ interface ChatWindowProps {
   blockedUserIds?: string[]
   /** Solo en chat directo: true = en línea, false = desconectado, undefined = grupo o sin dato */
   otherUserOnline?: boolean
-  /** IDs de usuarios en línea (para grupos: mostrar quiénes del grupo están en línea) */
-  onlineUserIds?: Set<string>
+  /** IDs de usuarios que tienen este chat abierto (para grupos: "en línea" = dentro del chat) */
+  usersInCurrentChat?: string[]
 }
 
 /**
@@ -102,7 +103,7 @@ export function ChatWindow({
   onUnblockUser,
   blockedUserIds = [],
   otherUserOnline,
-  onlineUserIds = new Set(),
+  usersInCurrentChat = [],
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -187,7 +188,7 @@ export function ChatWindow({
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-semibold text-bitchat-fg">{chat.name}</h2>
           <p className="text-xs text-bitchat-fg/80 truncate">
-            {getChatHeaderSubtitle(chat, currentUserId, otherUserOnline, onlineUserIds)}
+            {getChatHeaderSubtitle(chat, currentUserId, otherUserOnline, usersInCurrentChat)}
           </p>
         </div>
         {(onUpdateChatBackground || (chat.otherUserId && (onBlockUser || onUnblockUser))) && (

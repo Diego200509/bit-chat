@@ -14,6 +14,15 @@ const { User } = require('../models');
 /** Usuarios conectados: socketId -> { userId, userName } */
 const connectedUsers = new Map();
 
+/** Presencia por chat: chatId -> Set de userId que tienen ese chat abierto (solo para grupos/directos) */
+const chatPresence = new Map();
+
+function emitChatPresence(io, chatId) {
+  const set = chatPresence.get(chatId);
+  const userIds = set ? Array.from(set) : [];
+  io.to(`chat:${chatId}`).emit(EVENTS.CHAT_PRESENCE, { chatId, userIds });
+}
+
 /** Devuelve solo los usuarios conectados que tienen visibility === 'visible' (modo invisible no aparece en línea) */
 async function getVisibleOnlineUsers() {
   const list = Array.from(connectedUsers.values());
@@ -73,9 +82,23 @@ function registerSocketHandlers(io) {
     });
 
     socket.on(EVENTS.JOIN_CHAT, async (chatId) => {
+      const currentUserId = socket.data.userId || null;
+      const prevChatId = socket.data.currentChatId;
+      if (prevChatId && prevChatId !== chatId) {
+        const prevSet = chatPresence.get(prevChatId);
+        if (prevSet && currentUserId) {
+          prevSet.delete(currentUserId);
+          if (prevSet.size === 0) chatPresence.delete(prevChatId);
+          emitChatPresence(io, prevChatId);
+        }
+      }
+      if (currentUserId) {
+        if (!chatPresence.has(chatId)) chatPresence.set(chatId, new Set());
+        chatPresence.get(chatId).add(currentUserId);
+      }
+      socket.data.currentChatId = chatId;
       socket.join(`chat:${chatId}`);
       try {
-        const currentUserId = socket.data.userId || null;
         const history = await getMessageHistory(chatId, 100, currentUserId);
         socket.emit(EVENTS.CHAT_HISTORY, { chatId, messages: history });
         if (currentUserId) {
@@ -86,8 +109,10 @@ function registerSocketHandlers(io) {
             io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, { ...payload, chatId });
           }
         }
+        emitChatPresence(io, chatId);
       } catch (err) {
         console.error('Error loading chat history:', err);
+        emitChatPresence(io, chatId);
       }
     });
 
@@ -97,6 +122,14 @@ function registerSocketHandlers(io) {
     });
 
     socket.on(EVENTS.LEAVE_CHAT, (chatId) => {
+      const currentUserId = socket.data.userId;
+      if (socket.data.currentChatId === chatId) socket.data.currentChatId = null;
+      const set = chatPresence.get(chatId);
+      if (set && currentUserId) {
+        set.delete(currentUserId);
+        if (set.size === 0) chatPresence.delete(chatId);
+        emitChatPresence(io, chatId);
+      }
       socket.leave(`chat:${chatId}`);
     });
 
@@ -238,6 +271,15 @@ function registerSocketHandlers(io) {
 
     socket.on('disconnect', async () => {
       const userId = socket.data.userId;
+      const currentChatId = socket.data.currentChatId;
+      if (currentChatId && userId) {
+        const set = chatPresence.get(currentChatId);
+        if (set) {
+          set.delete(userId);
+          if (set.size === 0) chatPresence.delete(currentChatId);
+          emitChatPresence(io, currentChatId);
+        }
+      }
       connectedUsers.delete(socket.id);
       if (userId) {
         try {
