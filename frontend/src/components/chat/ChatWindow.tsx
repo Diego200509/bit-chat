@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import type { Chat } from '../../types/chat'
 import { Message } from './Message'
 import { MessageInput } from './MessageInput'
@@ -38,6 +38,21 @@ export function ChatWindow({
   blockedUserIds = [],
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+
+  const scrollToMessage = useCallback((messageId: string) => {
+    const container = messagesContainerRef.current
+    const messageEl = document.getElementById(`msg-${messageId}`)
+    if (!container || !messageEl) return
+    const containerRect = container.getBoundingClientRect()
+    const msgRect = messageEl.getBoundingClientRect()
+    const relativeTop = msgRect.top - containerRect.top + container.scrollTop
+    const scrollTo = relativeTop - container.clientHeight / 2 + msgRect.height / 2
+    container.scrollTo({ top: Math.max(0, scrollTo), behavior: 'smooth' })
+    setHighlightedMessageId(messageId)
+    setTimeout(() => setHighlightedMessageId(null), 2500)
+  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -58,6 +73,9 @@ export function ChatWindow({
     ...m,
     isOwn: m.senderId === currentUserId,
   }))
+  const pinned = messagesWithOwn.filter((m) => m.pinned)
+  // Orden cronológico para que el mensaje fijado aparezca en su posición real del historial
+  const messagesChronological = [...messagesWithOwn].sort((a, b) => a.timestamp - b.timestamp)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bitchat-bg">
@@ -89,42 +107,54 @@ export function ChatWindow({
         )}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain">
-        {(() => {
-          const pinned = messagesWithOwn.filter((m) => m.pinned)
-          const rest = messagesWithOwn.filter((m) => !m.pinned)
-          return (
-            <>
-              {pinned.length > 0 && (
-                <div className="mb-3 rounded-lg bg-bitchat-sidebar/60 border border-bitchat-border p-2">
-                  <p className="text-xs font-medium text-slate-400 mb-2">Mensaje fijado</p>
-                  {pinned.map((message) => (
-                    <Message
-                      key={message.id}
-                      message={message}
-                      currentUserId={currentUserId}
-                      onReaction={onReaction}
-                      onEditMessage={onEditMessage}
-                      onPinMessage={onPinMessage}
-                      onUnpinMessage={onUnpinMessage}
-                    />
-                  ))}
-                </div>
-              )}
-              {rest.map((message) => (
-                <Message
-                  key={message.id}
-                  message={message}
-                  currentUserId={currentUserId}
-                  onReaction={onReaction}
-                  onEditMessage={onEditMessage}
-                  onPinMessage={onPinMessage}
-                  onUnpinMessage={onUnpinMessage}
-                />
-              ))}
-            </>
-          )
-        })()}
+      {pinned.length > 0 && (() => {
+        const msg = pinned[0]
+        const preview = (msg.type === 'image' ? 'Imagen' : msg.type === 'sticker' ? 'Sticker' : (msg.text || '').trim()) || 'Mensaje'
+        const previewShort = preview.length > 40 ? preview.slice(0, 40) + '…' : preview
+        return (
+          <div className="flex shrink-0 items-center gap-2 border-b border-bitchat-border bg-bitchat-sidebar/80 px-3 py-1.5 md:px-4">
+            <span className="flex-shrink-0 text-bitchat-cyan" aria-hidden>
+              <PinIcon className="h-4 w-4" />
+            </span>
+            <button
+              type="button"
+              onClick={() => scrollToMessage(msg.id)}
+              className="min-w-0 flex-1 text-left text-sm text-slate-300 truncate hover:text-slate-100 hover:underline"
+              title="Ir al mensaje"
+            >
+              {previewShort}
+            </button>
+            {onUnpinMessage && (
+              <button
+                type="button"
+                onClick={() => onUnpinMessage(msg.id)}
+                className="flex-shrink-0 rounded px-2 py-1 text-xs text-slate-400 hover:bg-bitchat-panel hover:text-slate-200"
+                title="Desfijar mensaje"
+              >
+                Desfijar
+              </button>
+            )}
+          </div>
+        )
+      })()}
+
+      <div ref={messagesContainerRef} className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain">
+        {messagesChronological.map((message) => (
+          <div
+            key={message.id}
+            id={`msg-${message.id}`}
+            className={`transition-[box-shadow] duration-300 ${highlightedMessageId === message.id ? 'rounded-xl ring-2 ring-bitchat-cyan ring-offset-2 ring-offset-bitchat-bg' : ''}`}
+          >
+            <Message
+              message={message}
+              currentUserId={currentUserId}
+              onReaction={onReaction}
+              onEditMessage={onEditMessage}
+              onPinMessage={onPinMessage}
+              onUnpinMessage={onUnpinMessage}
+            />
+          </div>
+        ))}
         <div ref={messagesEndRef} />
       </div>
 
@@ -194,6 +224,14 @@ function BackIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
       <path fillRule="evenodd" d="M7.72 12.53a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 1 1 1.06 1.06L9.31 12l6.97 6.97a.75.75 0 1 1-1.06 1.06l-7.5-7.5Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function PinIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M16.5 3.75a3.75 3.75 0 0 0-2.25 6.72 3.75 3.75 0 0 0 1.5 2.28v7.5h3v-7.5a3.75 3.75 0 0 0 1.5-2.28 3.75 3.75 0 0 0-2.25-6.72ZM12 15a3 3 0 0 1-3-3V6a3 3 0 1 1 6 0v6a3 3 0 0 1-3 3Z" clipRule="evenodd" />
     </svg>
   )
 }
