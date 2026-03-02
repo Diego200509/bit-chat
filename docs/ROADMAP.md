@@ -58,8 +58,8 @@
 ---
 
 ## Fase 7 – Limpieza y moderación
-- [ ] **Borrar conversación**: borrar mensajes para el usuario o para todos (soft delete)
-- [ ] **Eliminar mensaje**: solo propio o con permisos en grupo
+- [x] **Borrar conversación**: borrar mensajes para el usuario o para todos (soft delete)
+- [x] **Eliminar mensaje**: solo propio o con permisos en grupo
 
 ---
 

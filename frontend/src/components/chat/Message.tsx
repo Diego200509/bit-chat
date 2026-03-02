@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { Message as MessageType } from '../../types/chat'
 import { env } from '../../config/env'
+import { ConfirmModal } from './ConfirmModal'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😄', '😮', '😢', '👎']
 const LONG_TEXT_WORDS = 130
@@ -59,6 +60,7 @@ interface MessageProps {
   onEditMessage?: (messageId: string, text: string) => void
   onPinMessage?: (messageId: string) => void
   onUnpinMessage?: (messageId: string) => void
+  onDeleteMessage?: (messageId: string, scope: 'for_me' | 'for_everyone') => void
 }
 
 function fullUrl(path: string): string {
@@ -71,10 +73,11 @@ function fullUrl(path: string): string {
 /**
  * Un solo mensaje: texto, imagen, sticker y reacciones.
  */
-export function Message({ message, currentUserId, onReaction, onEditMessage, onPinMessage, onUnpinMessage }: MessageProps) {
+export function Message({ message, currentUserId, onReaction, onEditMessage, onPinMessage, onUnpinMessage, onDeleteMessage }: MessageProps) {
   const isOwn = message.isOwn ?? false
   const [showReactions, setShowReactions] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<'for_me' | 'for_everyone' | null>(null)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(message.text || '')
   const [pickerStyle, setPickerStyle] = useState<{ top: number; left: number } | null>(null)
@@ -84,6 +87,7 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
   const type = message.type || 'text'
   const hasReactions = message.reactions && message.reactions.length > 0
   const canEdit = isOwn && type === 'text' && onEditMessage
+  const canDeleteForEveryone = isOwn && onDeleteMessage
   const showReadBy =
     isOwn &&
     message.readBy &&
@@ -154,6 +158,34 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
   const handleCancelEdit = () => {
     setEditing(false)
     setEditText(message.text || '')
+  }
+
+  // Burbuja de mensaje eliminado para todos (mismos colores que el resto del chat)
+  if (message.deletedForEveryone) {
+    const deletedByMe = message.deletedByUserId != null && String(message.deletedByUserId) === String(currentUserId ?? '')
+    const text = deletedByMe ? 'Eliminaste este mensaje.' : 'Este mensaje fue eliminado.'
+    const alignRight = deletedByMe
+    const bubbleClass = alignRight
+      ? 'rounded-br-md bg-bitchat-cyan text-bitchat-blue-dark'
+      : 'rounded-bl-md bg-bitchat-received text-bitchat-received-fg'
+    const mutedClass = alignRight ? 'text-bitchat-blue-dark/70' : 'text-bitchat-received-muted'
+    return (
+      <div className={`flex w-full ${alignRight ? 'justify-end' : 'justify-start'} mb-2`}>
+        <div className={`rounded-2xl px-4 py-2.5 max-w-[85%] sm:max-w-[75%] ${bubbleClass}`}>
+          <div className="flex items-start gap-2">
+            <span className={`flex-shrink-0 ${mutedClass}`} aria-hidden>
+              <DeletedMessageIcon />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm italic">{text}</p>
+              <p className={`text-[10px] ${mutedClass} mt-0.5 text-right`}>
+                {formatTime(message.timestamp)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -245,7 +277,7 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
             )}
           </div>
         </div>
-        {(onReaction && currentUserId) || onEditMessage || onPinMessage || onUnpinMessage ? (
+        {(onReaction && currentUserId) || onEditMessage || onPinMessage || onUnpinMessage || onDeleteMessage ? (
           <>
             {onReaction && currentUserId && (
               <>
@@ -283,7 +315,7 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
                   )}
               </>
             )}
-            {(canEdit || onPinMessage || onUnpinMessage) && (
+            {(canEdit || onPinMessage || onUnpinMessage || onDeleteMessage) && (
               <>
                 <button
                   ref={menuButtonRef}
@@ -341,6 +373,32 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
                           </button>
                         )
                       )}
+                      {onDeleteMessage && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowMenu(false)
+                              setDeleteConfirm('for_me')
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-sm text-slate-200 hover:bg-bitchat-panel"
+                          >
+                            Eliminar para mí
+                          </button>
+                          {canDeleteForEveryone && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowMenu(false)
+                                setDeleteConfirm('for_everyone')
+                              }}
+                              className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-bitchat-panel"
+                            >
+                              Eliminar para todos
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>,
                     document.body
                   )}
@@ -349,7 +407,42 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
           </>
         ) : null}
       </div>
+
+      {deleteConfirm === 'for_me' && (
+        <ConfirmModal
+          title="Eliminar para mí"
+          message="El mensaje se ocultará solo para ti. Los demás seguirán viéndolo."
+          confirmLabel="Eliminar"
+          onConfirm={() => {
+            onDeleteMessage?.(message.id, 'for_me')
+            setDeleteConfirm(null)
+          }}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+      {deleteConfirm === 'for_everyone' && (
+        <ConfirmModal
+          title="Eliminar para todos"
+          message="El mensaje se borrará para todos los participantes. Esta acción no se puede deshacer."
+          confirmLabel="Eliminar para todos"
+          danger
+          onConfirm={() => {
+            onDeleteMessage?.(message.id, 'for_everyone')
+            setDeleteConfirm(null)
+          }}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
     </div>
+  )
+}
+
+function DeletedMessageIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M4.93 4.93l14.14 14.14" />
+    </svg>
   )
 }
 

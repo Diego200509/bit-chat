@@ -31,6 +31,10 @@ export interface Message {
   timestamp: number
   /** true = enviado por el usuario actual */
   isOwn?: boolean
+  /** Mensaje borrado para todos; se muestra placeholder con texto "Eliminaste este mensaje" / "Este mensaje fue eliminado" */
+  deletedForEveryone?: boolean
+  /** Id del usuario que eliminó (para mostrar "Eliminaste este mensaje" vs "Este mensaje fue eliminado") */
+  deletedByUserId?: string
 }
 
 export interface Chat {

@@ -19,6 +19,8 @@ module.exports = {
   // Servidor -> Cliente
   NEW_MESSAGE: 'new_message',
   MESSAGE_UPDATED: 'message_updated',
+  MESSAGE_DELETED: 'message_deleted',
+  NOTIFY_MESSAGE_DELETED: 'notify_message_deleted',
   USERS_ONLINE: 'users_online',
   USER_LAST_SEEN_UPDATED: 'user_last_seen_updated',
   CHAT_PRESENCE: 'chat_presence',

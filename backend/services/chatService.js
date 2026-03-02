@@ -91,6 +91,32 @@ function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallba
   };
 }
 
+/** Payload mínimo para mensaje eliminado "para todos" (para mostrar placeholder en el historial). */
+function deletedMessageToPayload(msg, resolvedChatId, senderDisplayName) {
+  const senderId = msg.sender
+    ? (typeof msg.sender === 'object' && msg.sender._id != null ? msg.sender._id.toString() : msg.sender.toString())
+    : (msg.senderIdFallback || null);
+  const deletedByUserId = msg.deletedBy ? msg.deletedBy.toString() : senderId;
+  return {
+    id: msg._id.toString(),
+    chatId: resolvedChatId,
+    text: '',
+    type: 'text',
+    imageUrl: null,
+    stickerUrl: null,
+    editedAt: null,
+    readBy: [],
+    pinned: false,
+    reactions: [],
+    senderId,
+    senderName: senderDisplayName ?? msg.senderName ?? 'Anónimo',
+    senderAvatar: null,
+    timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
+    deletedForEveryone: true,
+    deletedByUserId,
+  };
+}
+
 /**
  * Historial de mensajes de un chat (para cargar al abrir).
  * Si currentUserId se pasa, se ocultan mensajes de usuarios que ese usuario tiene bloqueados.
@@ -99,28 +125,48 @@ async function getMessageHistory(chatId, limit = 100, currentUserId = null) {
   const chat = await getOrCreateChat(chatId);
   if (!chat) return [];
 
-  let messages = await Message.find({ chat: chat._id })
+  const resolvedChatId = (chatId === 'chat-1' || chatId === 'general') ? chatId : chat._id.toString();
+
+  const baseQuery = { chat: chat._id, deletedAt: null };
+  if (currentUserId) {
+    const userObjId = mongoose.Types.ObjectId.isValid(currentUserId) ? new mongoose.Types.ObjectId(currentUserId) : null;
+    if (userObjId) baseQuery.deletedFor = { $nin: [userObjId] };
+  }
+  let messages = await Message.find(baseQuery)
     .sort({ createdAt: 1 })
     .limit(limit * 2)
     .populate('sender', 'name nickname avatar')
     .lean();
 
+  let deletedMessages = await Message.find({ chat: chat._id, deletedAt: { $ne: null } })
+    .sort({ createdAt: 1 })
+    .limit(limit * 2)
+    .populate('sender', 'name nickname')
+    .lean();
+
+  let blockedIds = new Set();
   if (currentUserId) {
     const me = await User.findById(currentUserId).select('blockedUsers').lean();
-    const blockedIds = new Set((me?.blockedUsers || []).map((b) => b.toString()));
+    blockedIds = new Set((me?.blockedUsers || []).map((b) => b.toString()));
     messages = messages.filter((m) => {
       const senderId = m.sender?._id?.toString() || null;
       return !senderId || !blockedIds.has(senderId);
     });
-    messages = messages.slice(-limit);
+    deletedMessages = deletedMessages.filter((m) => {
+      const senderId = m.sender?._id?.toString() || m.sender?.toString() || null;
+      return !senderId || !blockedIds.has(senderId);
+    });
   }
 
-  const resolvedChatId = (chatId === 'chat-1' || chatId === 'general') ? chatId : chat._id.toString();
   const getSenderName = (m) => (m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'));
   const getSenderAvatar = (m) => (m.sender && m.sender.avatar ? m.sender.avatar : null);
-  const list = messages.map((m) => messageToPayload(m, resolvedChatId, getSenderName(m), null, getSenderAvatar(m)));
-  list.sort((a, b) => (a.pinned ? 0 : 1) - (b.pinned ? 0 : 1) || (a.timestamp - b.timestamp));
-  return list;
+
+  const list1 = messages.map((m) => messageToPayload(m, resolvedChatId, getSenderName(m), null, getSenderAvatar(m)));
+  const list2 = deletedMessages.map((m) => deletedMessageToPayload(m, resolvedChatId, getSenderName(m)));
+
+  const combined = [...list1, ...list2].sort((a, b) => a.timestamp - b.timestamp).slice(-limit);
+  combined.sort((a, b) => (a.pinned ? 0 : 1) - (b.pinned ? 0 : 1) || (a.timestamp - b.timestamp));
+  return combined;
 }
 
 /**
@@ -150,11 +196,18 @@ async function getChatsForUser(userId, limit = 50) {
   const { Message } = require('../models');
   const list = [];
 
+  const userObjIdForList = new mongoose.Types.ObjectId(userId);
+  const lastMsgQueryBase = (chatId) => ({
+    chat: chatId,
+    deletedAt: null,
+    deletedFor: { $nin: [userObjIdForList] },
+  });
+
   const general = await Chat.findOne({ name: 'General', type: 'group' })
     .populate('participants', 'name nickname avatar')
     .lean();
   if (general) {
-    const lastMsg = await Message.findOne({ chat: general._id }).sort({ createdAt: -1 }).lean();
+    const lastMsg = await Message.findOne(lastMsgQueryBase(general._id)).sort({ createdAt: -1 }).lean();
     const pinned = (general.pinnedBy || []).some((id) => id.toString() === userId);
     const archived = (general.archivedBy || []).some((id) => id.toString() === userId);
     const participants = (general.participants || []).map((p) => ({
@@ -183,7 +236,7 @@ async function getChatsForUser(userId, limit = 50) {
   for (const c of directChats) {
     const other = c.participants?.find((p) => p._id.toString() !== userId);
     const displayName = other ? (other.nickname?.trim() || other.name) : 'Usuario';
-    const lastMsg = await Message.findOne({ chat: c._id }).sort({ createdAt: -1 }).lean();
+    const lastMsg = await Message.findOne(lastMsgQueryBase(c._id)).sort({ createdAt: -1 }).lean();
     const pinned = (c.pinnedBy || []).some((id) => id.toString() === userId);
     const archived = (c.archivedBy || []).some((id) => id.toString() === userId);
     const otherUserLastSeen = other?.lastSeen ? new Date(other.lastSeen).getTime() : null;
@@ -208,7 +261,7 @@ async function getChatsForUser(userId, limit = 50) {
     .limit(limit)
     .lean();
   for (const c of groupChats) {
-    const lastMsg = await Message.findOne({ chat: c._id }).sort({ createdAt: -1 }).lean();
+    const lastMsg = await Message.findOne(lastMsgQueryBase(c._id)).sort({ createdAt: -1 }).lean();
     const pinned = (c.pinnedBy || []).some((id) => id.toString() === userId);
     const archived = (c.archivedBy || []).some((id) => id.toString() === userId);
     const participants = (c.participants || []).map((p) => ({
@@ -404,6 +457,54 @@ async function unpinMessage(messageId, userId) {
   return messageToPayload(msg, resolvedChatId, senderName, null, senderAvatar);
 }
 
+/**
+ * Borrar mensaje "para mí" (soft delete local). Cualquier usuario puede.
+ */
+async function deleteMessageForMe(messageId, userId) {
+  if (!messageId || !userId) return null;
+  const msg = await Message.findById(messageId);
+  if (!msg) return null;
+  if (msg.deletedAt) return null;
+  const userObjId = new mongoose.Types.ObjectId(userId);
+  if (!(msg.deletedFor || []).some((id) => id.toString() === userId)) {
+    msg.deletedFor = (msg.deletedFor || []).concat(userObjId);
+    await msg.save();
+  }
+  return { messageId: msg._id.toString(), chatId: msg.chat.toString(), scope: 'for_me' };
+}
+
+/**
+ * Borrar mensaje "para todos" (soft delete global). Solo el autor; en grupo solo el autor por ahora.
+ */
+async function deleteMessageForEveryone(messageId, userId) {
+  if (!messageId || !userId) return null;
+  const msg = await Message.findById(messageId);
+  if (!msg) return null;
+  const senderId = msg.sender ? msg.sender.toString() : (msg.senderIdFallback || null);
+  if (senderId !== userId) return null;
+  if (msg.deletedAt) return { messageId: msg._id.toString(), chatId: msg.chat.toString(), scope: 'for_everyone' };
+  msg.deletedAt = new Date();
+  msg.deletedBy = new mongoose.Types.ObjectId(userId);
+  await msg.save();
+  return { messageId: msg._id.toString(), chatId: msg.chat.toString(), scope: 'for_everyone' };
+}
+
+/**
+ * Borrar conversación "para mí": marca todos los mensajes del chat como deletedFor este usuario.
+ */
+async function clearChatForMe(chatId, userId) {
+  if (!chatId || !userId) return null;
+  const chat = await getOrCreateChat(chatId);
+  if (!chat) return null;
+  const userObjId = new mongoose.Types.ObjectId(userId);
+  const res = await Message.updateMany(
+    { chat: chat._id, deletedAt: null, deletedFor: { $nin: [userObjId] } },
+    { $addToSet: { deletedFor: userObjId } }
+  );
+  const resolvedChatId = (chatId === 'chat-1' || chatId === 'general') ? chatId : chat._id.toString();
+  return { chatId: resolvedChatId, modifiedCount: res.modifiedCount };
+}
+
 module.exports = {
   getOrCreateChat,
   getOrCreateDirectChat,
@@ -416,4 +517,7 @@ module.exports = {
   markChatAsRead,
   pinMessage,
   unpinMessage,
+  deleteMessageForMe,
+  deleteMessageForEveryone,
+  clearChatForMe,
 };

@@ -1,7 +1,7 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const { Chat } = require('../models');
-const { getOrCreateDirectChat, getChatsForUser, createGroupChat } = require('../services/chatService');
+const { getOrCreateDirectChat, getChatsForUser, createGroupChat, clearChatForMe } = require('../services/chatService');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -125,6 +125,19 @@ router.post('/:id/unarchive', async (req, res) => {
   } catch (err) {
     console.error('Unarchive chat error:', err);
     res.status(500).json({ error: 'Error al desarchivar' });
+  }
+});
+
+/** POST /chats/:id/clear - Borrar conversación para mí (soft delete de todos los mensajes para el usuario actual) */
+router.post('/:id/clear', async (req, res) => {
+  try {
+    const chatId = req.params.id === 'chat-1' ? 'chat-1' : req.params.id;
+    const result = await clearChatForMe(chatId, req.userId);
+    if (!result) return res.status(404).json({ error: 'Chat no encontrado' });
+    return res.json(result);
+  } catch (err) {
+    console.error('Clear chat error:', err);
+    res.status(500).json({ error: 'Error al borrar conversación' });
   }
 });
 

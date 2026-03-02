@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import type { Chat } from '../../types/chat'
 import { env } from '../../config/env'
+import { ConfirmModal } from './ConfirmModal'
 import { Message } from './Message'
 import { MessageInput } from './MessageInput'
 
@@ -82,6 +83,8 @@ interface ChatWindowProps {
   otherUserOnline?: boolean
   /** IDs de usuarios que tienen este chat abierto (para grupos: "en línea" = dentro del chat) */
   usersInCurrentChat?: string[]
+  onDeleteMessage?: (messageId: string, scope: 'for_me' | 'for_everyone') => void
+  onClearChat?: (chatId: string) => void
 }
 
 /**
@@ -104,11 +107,14 @@ export function ChatWindow({
   blockedUserIds = [],
   otherUserOnline,
   usersInCurrentChat = [],
+  onDeleteMessage,
+  onClearChat,
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const bgPickerRef = useRef<HTMLDivElement>(null)
 
   const scrollToMessage = useCallback((messageId: string) => {
@@ -236,6 +242,17 @@ export function ChatWindow({
                 onUnblock={onUnblockUser}
               />
             )}
+            {onClearChat && (
+              <button
+                type="button"
+                onClick={() => setShowClearConfirm(true)}
+                className="rounded-lg p-2 text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-red-400"
+                title="Borrar conversación"
+                aria-label="Borrar conversación"
+              >
+                <TrashIcon className="h-5 w-5" />
+              </button>
+            )}
           </div>
         )}
       </header>
@@ -289,6 +306,7 @@ export function ChatWindow({
               onEditMessage={onEditMessage}
               onPinMessage={onPinMessage}
               onUnpinMessage={onUnpinMessage}
+              onDeleteMessage={onDeleteMessage}
             />
           </div>
         ))}
@@ -306,6 +324,20 @@ export function ChatWindow({
           onSend={onSendMessage}
           onSendImage={onSendImage}
           onSendSticker={onSendSticker}
+        />
+      )}
+
+      {showClearConfirm && chat && onClearChat && (
+        <ConfirmModal
+          title="Borrar conversación"
+          message="Los mensajes se ocultarán solo para ti. Los demás seguirán viendo el historial."
+          confirmLabel="Borrar"
+          danger
+          onConfirm={() => {
+            onClearChat(chat.id)
+            setShowClearConfirm(false)
+          }}
+          onCancel={() => setShowClearConfirm(false)}
         />
       )}
     </div>
@@ -377,6 +409,14 @@ function WallpaperIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
       <path fillRule="evenodd" d="M1.5 6a2.25 2.25 0 0 1 2.25-2.25h16.5A2.25 2.25 0 0 1 22.5 6v12a2.25 2.25 0 0 1-2.25 2.25H3.75A2.25 2.25 0 0 1 1.5 18V6ZM3 16.06V18h6v-6.06l-2.97 2.97a.75.75 0 0 1-1.06 0L3 16.06Zm10.5-1.06 2.25 2.25v.001h.001l2.25-2.25v-6.5h-4.5v6.5Zm-6.75-6.75 2.25 2.25v6.5H3v-6.5l2.25-2.25a.75.75 0 0 1 1.06 0Zm1.06 0 2.97-2.97a.75.75 0 0 1 1.06 0L14.94 8 12 5.06 9.06 8l2.97 2.97a.75.75 0 0 1 0 1.06L9.06 14l.94.94h6.5v-6.5l-2.25-2.25a.75.75 0 0 1 0-1.06L16.94 5.06 14 2.06l-2.25 2.25a.75.75 0 0 1 0 1.06L14.94 6.5 12 9.44 9.06 6.5l1.06-1.06a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 0 1 3.878.512.75.75 0 1 1-.256 1.478l-.209-.035-1.005 13.07a3 3 0 0 1-2.991 2.77H8.084a3 3 0 0 1-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 0 1-.256-1.478A48.567 48.567 0 0 1 7.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 0 1 3.369 0c1.603.051 2.815 1.387 2.815 2.951Zm-6.136-1.452a51.196 51.196 0 0 1 3.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 0 0-6 0v-.113c0-.794.609-1.428 1.364-1.452Zm-.355 5.945a.75.75 0 1 0-1.5.058l.347 9a.75.75 0 1 0 1.499-.058l-.346-9Zm5.48.058a.75.75 0 1 0-1.498-.058l-.347 9a.75.75 0 0 0 1.5.058l.345-9Z" clipRule="evenodd" />
     </svg>
   )
 }

@@ -228,6 +228,29 @@ export async function unpinMessage(messageId: string): Promise<unknown> {
   return data
 }
 
+/** Eliminar mensaje. scope: 'for_me' (solo para mí) o 'for_everyone' (solo autor). */
+export async function deleteMessage(
+  messageId: string,
+  scope: 'for_me' | 'for_everyone'
+): Promise<{ messageId: string; chatId: string; scope: string }> {
+  const res = await fetch(`${env.apiUrl}/messages/${messageId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    body: JSON.stringify({ scope }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error al eliminar')
+  return data
+}
+
+/** Borrar conversación para mí (oculta todos los mensajes del chat para el usuario actual). */
+export async function clearChat(chatId: string): Promise<{ chatId: string; modifiedCount: number }> {
+  const res = await fetch(`${env.apiUrl}/chats/${chatId}/clear`, { method: 'POST', headers: authHeaders() })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error al borrar conversación')
+  return data
+}
+
 /** Sube una imagen. Devuelve la URL pública (ej. /uploads/xxx). */
 export async function uploadImage(file: File): Promise<string> {
   const form = new FormData()

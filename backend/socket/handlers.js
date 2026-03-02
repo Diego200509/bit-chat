@@ -148,6 +148,13 @@ function registerSocketHandlers(io) {
       }
     });
 
+    socket.on(EVENTS.NOTIFY_MESSAGE_DELETED, (payload) => {
+      const { messageId, chatId } = payload || {};
+      if (messageId && chatId) {
+        io.to(`chat:${chatId}`).emit(EVENTS.MESSAGE_DELETED, { messageId, chatId });
+      }
+    });
+
     socket.on(EVENTS.SEND_MESSAGE, async (payload) => {
       const { chatId, text, type, imageUrl, stickerUrl, senderId, senderName } = payload;
       const userId = socket.data.userId ?? senderId;

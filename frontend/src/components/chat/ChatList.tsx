@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import type { Chat } from '../../types/chat'
+import { ConfirmModal } from './ConfirmModal'
 import { CreateGroupModal } from './CreateGroupModal'
 import { env } from '../../config/env'
 
@@ -63,6 +64,7 @@ interface ChatListProps {
   onArchiveChat?: (chatId: string) => void
   onUnarchiveChat?: (chatId: string) => void
   onCreateGroup?: (name: string, participantIds: string[], image?: string | null) => Promise<void>
+  onClearChat?: (chatId: string) => void
   theme?: 'dark' | 'light'
   onToggleTheme?: () => void
 }
@@ -85,10 +87,12 @@ export function ChatList({
   onArchiveChat,
   onUnarchiveChat,
   onCreateGroup,
+  onClearChat,
   theme = 'dark',
   onToggleTheme,
 }: ChatListProps) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [clearConfirmChatId, setClearConfirmChatId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -148,7 +152,7 @@ export function ChatList({
               </span>
             )}
           </button>
-          {(onPinChat || onArchiveChat) && (
+          {(onPinChat || onArchiveChat || onClearChat) && (
             <div className="relative flex-shrink-0" ref={menuOpen ? menuRef : undefined}>
               <button
                 type="button"
@@ -216,6 +220,18 @@ export function ChatList({
                         Archivar
                       </button>
                     )
+                  )}
+                  {onClearChat && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpenId(null)
+                        setClearConfirmChatId(chat.id)
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-bitchat-panel"
+                    >
+                      Borrar conversación
+                    </button>
                   )}
                 </div>
               )}
@@ -333,6 +349,20 @@ export function ChatList({
         <CreateGroupModal
           onClose={() => setShowCreateGroup(false)}
           onCreate={onCreateGroup}
+        />
+      )}
+
+      {clearConfirmChatId && onClearChat && (
+        <ConfirmModal
+          title="Borrar conversación"
+          message="Los mensajes se ocultarán solo para ti. Los demás seguirán viendo el historial."
+          confirmLabel="Borrar"
+          danger
+          onConfirm={() => {
+            onClearChat(clearConfirmChatId)
+            setClearConfirmChatId(null)
+          }}
+          onCancel={() => setClearConfirmChatId(null)}
         />
       )}
     </div>

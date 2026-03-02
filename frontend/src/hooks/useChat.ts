@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useToast } from '../context/ToastContext'
 import { socket } from '../lib/socket'
 import { SOCKET_EVENTS } from '../constants/socket'
 import * as api from '../lib/api'
@@ -39,6 +40,7 @@ export interface UseChatOptions {
  */
 export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, options: UseChatOptions = {}) {
   const { getIsChatPanelVisible } = options
+  const showToast = useToast()
   const getIsChatPanelVisibleRef = useRef(getIsChatPanelVisible)
   getIsChatPanelVisibleRef.current = getIsChatPanelVisible
   const [chats, setChats] = useState<Chat[]>([])
@@ -153,6 +155,8 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
         senderName?: string
         senderAvatar?: string | null
         timestamp: number
+        deletedForEveryone?: boolean
+        deletedByUserId?: string
       }): Message {
     return {
       id: m.id,
@@ -168,6 +172,8 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
       senderName: m.senderName ?? 'Anónimo',
       senderAvatar: m.senderAvatar ?? null,
       timestamp: m.timestamp,
+      deletedForEveryone: m.deletedForEveryone,
+      deletedByUserId: m.deletedByUserId,
     }
   }
 
@@ -196,7 +202,9 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
       const normalized: Message[] = messages.map((m) => normalizeMessage(m))
       const last = normalized[normalized.length - 1]
       const lastPreview = last
-        ? (last.text?.trim() || (last.type === 'image' ? 'Imagen' : last.type === 'sticker' ? 'Sticker' : ''))
+        ? last.deletedForEveryone
+          ? 'Mensaje eliminado'
+          : (last.text?.trim() || (last.type === 'image' ? 'Imagen' : last.type === 'sticker' ? 'Sticker' : ''))
         : ''
       setChats((prev) => {
         const existing = prev.find((c) => c.id === chatId)
@@ -285,6 +293,30 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
       socket.off(SOCKET_EVENTS.NEW_MESSAGE, onMessage)
     }
   }, [userId, userName])
+
+  // Mensaje eliminado para todos (broadcast): mostrar placeholder "Este mensaje fue eliminado"
+  useEffect(() => {
+    const onDeleted = (payload: { messageId?: string; chatId?: string }) => {
+      const { messageId: mid, chatId: cid } = payload
+      if (!mid || !cid) return
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id !== cid
+            ? c
+            : {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id !== mid ? m : { ...m, deletedForEveryone: true }
+                ),
+              }
+        )
+      )
+    }
+    socket.on(SOCKET_EVENTS.MESSAGE_DELETED, onDeleted)
+    return () => {
+      socket.off(SOCKET_EVENTS.MESSAGE_DELETED, onDeleted)
+    }
+  }, [])
 
   // Actualizar mensaje (reacciones, edición, fijado, leído)
   useEffect(() => {
@@ -495,6 +527,42 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     }
   }, [])
 
+  const deleteMessage = useCallback(
+    async (messageId: string, scope: 'for_me' | 'for_everyone') => {
+      const result = await api.deleteMessage(messageId, scope)
+      if (scope === 'for_me') {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id !== result.chatId ? c : { ...c, messages: c.messages.filter((m) => m.id !== messageId) }
+          )
+        )
+      } else {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id !== result.chatId
+              ? c
+              : {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id !== messageId ? m : { ...m, deletedForEveryone: true, deletedByUserId: userId }
+                  ),
+                }
+          )
+        )
+        socket.emit(SOCKET_EVENTS.NOTIFY_MESSAGE_DELETED, { messageId, chatId: result.chatId })
+        showToast('Mensaje eliminado')
+      }
+    },
+    [showToast, userId]
+  )
+
+  const clearChat = useCallback(async (chatId: string) => {
+    await api.clearChat(chatId)
+    setChats((prev) =>
+      prev.map((c) => (c.id !== chatId ? c : { ...c, messages: [], lastMessage: undefined, lastMessageTime: undefined }))
+    )
+  }, [])
+
   return {
     chats,
     currentChatId,
@@ -521,5 +589,7 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     unarchiveChat,
     createGroupAndSelect,
     updateChatBackground,
+    deleteMessage,
+    clearChat,
   }
 }

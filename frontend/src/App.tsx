@@ -4,6 +4,7 @@ import { useChat } from './hooks/useChat'
 import { useTheme } from './hooks/useTheme'
 import { useBlocked } from './hooks/useBlocked'
 import { useOnlineUsers } from './hooks/useOnlineUsers'
+import { ToastProvider } from './context/ToastContext'
 import { AuthScreen } from './components/auth'
 import { ChatList, ChatWindow, EditProfileModal } from './components/chat'
 import { FriendsPanel } from './components/friends'
@@ -40,6 +41,8 @@ function ChatLayout() {
     pinMessage,
     unpinMessage,
     updateChatBackground,
+    deleteMessage,
+    clearChat,
   } = useChat(user!.id, displayName, {
     getIsChatPanelVisible: () => mobileView === 'chat' || (typeof window !== 'undefined' && window.innerWidth >= 768),
   })
@@ -114,6 +117,7 @@ function ChatLayout() {
             onArchiveChat={archiveChat}
             onUnarchiveChat={unarchiveChat}
             onCreateGroup={createGroupAndSelect}
+            onClearChat={clearChat}
             theme={theme}
             onToggleTheme={toggleTheme}
           />
@@ -141,6 +145,8 @@ function ChatLayout() {
           blockedUserIds={blockedIds}
           otherUserOnline={currentChat?.otherUserId ? onlineUserIds.has(currentChat.otherUserId) : undefined}
           usersInCurrentChat={currentChatId ? (chatPresenceByChatId[currentChatId] ?? []) : []}
+          onDeleteMessage={deleteMessage}
+          onClearChat={clearChat}
         />
       </main>
       {showEditProfile && user && (
@@ -177,7 +183,11 @@ function App() {
     return <AuthScreen />
   }
 
-  return <ChatLayout />
+  return (
+    <ToastProvider>
+      <ChatLayout />
+    </ToastProvider>
+  )
 }
 
 export default App
