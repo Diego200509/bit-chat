@@ -138,7 +138,7 @@ export function ChatWindow({
         )
       })()}
 
-      <div ref={messagesContainerRef} className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain">
+      <div ref={messagesContainerRef} className="chat-messages-scroll min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain">
         {messagesChronological.map((message) => (
           <div
             key={message.id}
