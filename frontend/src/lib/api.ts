@@ -55,8 +55,10 @@ export interface ChatListItem {
   type: 'direct' | 'group'
   otherUserId?: string
   avatar?: string | null
+  otherUserLastSeen?: number | null
   chatBackground?: string | null
   image?: string | null
+  participants?: Array<{ id: string; name: string }>
   lastMessage?: string
   lastMessageTime?: number | null
   isPinned?: boolean

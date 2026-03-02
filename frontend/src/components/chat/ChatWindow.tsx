@@ -11,6 +11,57 @@ const CHAT_BACKGROUND_PRESETS: Record<string, string> = {
   subtle: 'linear-gradient(180deg, #0a0a0a 0%, #171717 100%)',
 }
 
+function formatLastSeen(timestamp: number): string {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const timeStr = date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+  if (dateOnly.getTime() === today.getTime()) {
+    return `hoy a las ${timeStr}`
+  }
+  if (dateOnly.getTime() === yesterday.getTime()) {
+    return `ayer a las ${timeStr}`
+  }
+  const diffDays = Math.floor((today.getTime() - dateOnly.getTime()) / (24 * 60 * 60 * 1000))
+  if (diffDays >= 1 && diffDays < 7) {
+    return `${date.toLocaleDateString('es', { weekday: 'long' })} a las ${timeStr}`
+  }
+  if (diffDays >= 7 && diffDays < 365) {
+    return date.toLocaleDateString('es', { day: 'numeric', month: 'short' })
+  }
+  if (diffDays >= 365) {
+    return date.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+  return date.toLocaleDateString('es', { day: 'numeric', month: 'short' })
+}
+
+function getChatHeaderSubtitle(
+  chat: Chat,
+  currentUserId: string,
+  otherUserOnline: boolean | undefined,
+  onlineUserIds: Set<string>
+): string {
+  if (chat.otherUserId != null) {
+    if (otherUserOnline === true) return 'En línea'
+    if (chat.otherUserLastSeen != null) return `Última vez ${formatLastSeen(chat.otherUserLastSeen)}`
+    return 'Desconectado'
+  }
+  if (chat.participants && chat.participants.length > 0) {
+    const onlineInGroup = chat.participants.filter(
+      (p) => p.id !== currentUserId && onlineUserIds.has(p.id)
+    )
+    if (onlineInGroup.length === 0) return 'Nadie en línea'
+    if (onlineInGroup.length <= 3) {
+      return `${onlineInGroup.map((p) => p.name).join(', ')} en línea`
+    }
+    return `${onlineInGroup.length} en línea`
+  }
+  return 'BitChat'
+}
+
 interface ChatWindowProps {
   chat: Chat | null
   onSendMessage: (text: string) => void
@@ -28,6 +79,8 @@ interface ChatWindowProps {
   blockedUserIds?: string[]
   /** Solo en chat directo: true = en línea, false = desconectado, undefined = grupo o sin dato */
   otherUserOnline?: boolean
+  /** IDs de usuarios en línea (para grupos: mostrar quiénes del grupo están en línea) */
+  onlineUserIds?: Set<string>
 }
 
 /**
@@ -49,6 +102,7 @@ export function ChatWindow({
   onUnblockUser,
   blockedUserIds = [],
   otherUserOnline,
+  onlineUserIds = new Set(),
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -132,8 +186,8 @@ export function ChatWindow({
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-semibold text-bitchat-fg">{chat.name}</h2>
-          <p className="text-xs text-bitchat-fg/80">
-            {otherUserOnline === true ? 'En línea' : otherUserOnline === false ? 'Desconectado' : 'BitChat'}
+          <p className="text-xs text-bitchat-fg/80 truncate">
+            {getChatHeaderSubtitle(chat, currentUserId, otherUserOnline, onlineUserIds)}
           </p>
         </div>
         {(onUpdateChatBackground || (chat.otherUserId && (onBlockUser || onUnblockUser))) && (

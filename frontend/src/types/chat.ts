@@ -41,10 +41,14 @@ export interface Chat {
   image?: string | null
   /** Solo en chat directo: id del otro usuario (para bloquear, etc.) */
   otherUserId?: string
+  /** Solo en chat directo: timestamp de última vez visto (para "Última vez...") */
+  otherUserLastSeen?: number | null
   /** Solo en chat directo: si el usuario actual tiene bloqueado al otro */
   isBlocked?: boolean
   isPinned?: boolean
   isArchived?: boolean
+  /** Solo en grupo: participantes con id y nombre (para "X, Y en línea") */
+  participants?: Array<{ id: string; name: string }>
   lastMessage?: string
   lastMessageTime?: number
   unread?: number

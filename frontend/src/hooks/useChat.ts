@@ -18,6 +18,8 @@ function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean; unread?:
     isArchived: item.isArchived,
     avatar: item.avatar ?? null,
     image: item.image,
+    otherUserLastSeen: item.otherUserLastSeen ?? null,
+    participants: item.participants,
     chatBackground: item.chatBackground ?? null,
     lastMessage: item.lastMessage,
     lastMessageTime: item.lastMessageTime ?? undefined,
@@ -84,6 +86,21 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     return () => {
       socket.off('connect', onConnect)
       socket.off('disconnect', onDisconnect)
+    }
+  }, [])
+
+  // Actualizar "última vez" cuando alguien se desconecta
+  useEffect(() => {
+    const onLastSeen = (payload: { userId?: string; lastSeenAt?: number }) => {
+      const { userId: uId, lastSeenAt } = payload
+      if (!uId || lastSeenAt == null) return
+      setChats((prev) =>
+        prev.map((c) => (c.otherUserId === uId ? { ...c, otherUserLastSeen: lastSeenAt } : c))
+      )
+    }
+    socket.on(SOCKET_EVENTS.USER_LAST_SEEN_UPDATED, onLastSeen)
+    return () => {
+      socket.off(SOCKET_EVENTS.USER_LAST_SEEN_UPDATED, onLastSeen)
     }
   }, [])
 

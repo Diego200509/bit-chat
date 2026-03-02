@@ -236,8 +236,17 @@ function registerSocketHandlers(io) {
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
+      const userId = socket.data.userId;
       connectedUsers.delete(socket.id);
+      if (userId) {
+        try {
+          await User.findByIdAndUpdate(userId, { lastSeen: new Date() });
+          io.emit(EVENTS.USER_LAST_SEEN_UPDATED, { userId, lastSeenAt: Date.now() });
+        } catch (err) {
+          console.error('Error updating lastSeen:', err);
+        }
+      }
       getVisibleOnlineUsers().then((visible) => io.emit(EVENTS.USERS_ONLINE, visible));
       console.log('Cliente desconectado:', socket.id);
     });

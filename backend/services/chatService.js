@@ -150,16 +150,23 @@ async function getChatsForUser(userId, limit = 50) {
   const { Message } = require('../models');
   const list = [];
 
-  const general = await Chat.findOne({ name: 'General', type: 'group' }).lean();
+  const general = await Chat.findOne({ name: 'General', type: 'group' })
+    .populate('participants', 'name nickname avatar')
+    .lean();
   if (general) {
     const lastMsg = await Message.findOne({ chat: general._id }).sort({ createdAt: -1 }).lean();
     const pinned = (general.pinnedBy || []).some((id) => id.toString() === userId);
     const archived = (general.archivedBy || []).some((id) => id.toString() === userId);
+    const participants = (general.participants || []).map((p) => ({
+      id: p._id.toString(),
+      name: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
+    }));
     list.push({
       id: 'chat-1',
       name: 'General',
       type: 'group',
       image: general.image,
+      participants,
       chatBackground: general.chatBackground || null,
       isPinned: pinned,
       isArchived: archived,
@@ -169,7 +176,7 @@ async function getChatsForUser(userId, limit = 50) {
   }
 
   const directChats = await Chat.find({ type: 'direct', participants: userObjId })
-    .populate('participants', 'name nickname avatar')
+    .populate('participants', 'name nickname avatar lastSeen')
     .sort({ updatedAt: -1 })
     .limit(limit)
     .lean();
@@ -179,12 +186,14 @@ async function getChatsForUser(userId, limit = 50) {
     const lastMsg = await Message.findOne({ chat: c._id }).sort({ createdAt: -1 }).lean();
     const pinned = (c.pinnedBy || []).some((id) => id.toString() === userId);
     const archived = (c.archivedBy || []).some((id) => id.toString() === userId);
+    const otherUserLastSeen = other?.lastSeen ? new Date(other.lastSeen).getTime() : null;
     list.push({
       id: c._id.toString(),
       name: displayName,
       type: 'direct',
       otherUserId: other?._id?.toString(),
       avatar: other?.avatar || null,
+      otherUserLastSeen: otherUserLastSeen || null,
       chatBackground: c.chatBackground || null,
       isPinned: pinned,
       isArchived: archived,
@@ -202,11 +211,16 @@ async function getChatsForUser(userId, limit = 50) {
     const lastMsg = await Message.findOne({ chat: c._id }).sort({ createdAt: -1 }).lean();
     const pinned = (c.pinnedBy || []).some((id) => id.toString() === userId);
     const archived = (c.archivedBy || []).some((id) => id.toString() === userId);
+    const participants = (c.participants || []).map((p) => ({
+      id: p._id.toString(),
+      name: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
+    }));
     list.push({
       id: c._id.toString(),
       name: c.name || 'Grupo',
       type: 'group',
       image: c.image,
+      participants,
       chatBackground: c.chatBackground || null,
       isPinned: pinned,
       isArchived: archived,
