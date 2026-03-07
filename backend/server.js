@@ -15,7 +15,7 @@ attachSocket(io);
 
 connectDb()
   .then(() => {
-    server.listen(config.port, () => {
+    server.listen(config.port, '0.0.0.0', () => {
       console.log(`BitChat backend en http://localhost:${config.port}`);
     });
   })
