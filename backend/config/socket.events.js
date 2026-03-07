@@ -15,6 +15,10 @@ module.exports = {
   UNPIN_MESSAGE: 'unpin_message',
   MARK_CHAT_READ: 'mark_chat_read',
   REFRESH_ONLINE_LIST: 'refresh_online_list',
+  VIDEO_CALL_OFFER: 'video_call_offer',
+  VIDEO_CALL_ANSWER: 'video_call_answer',
+  VIDEO_CALL_REJECT: 'video_call_reject',
+  VIDEO_CALL_CANCEL: 'video_call_cancel',
 
   // Servidor -> Cliente
   NEW_MESSAGE: 'new_message',
@@ -25,4 +29,8 @@ module.exports = {
   USER_LAST_SEEN_UPDATED: 'user_last_seen_updated',
   CHAT_PRESENCE: 'chat_presence',
   CHAT_HISTORY: 'chat_history',
+  VIDEO_CALL_INCOMING: 'video_call_incoming',
+  VIDEO_CALL_ACCEPTED: 'video_call_accepted',
+  VIDEO_CALL_REJECTED: 'video_call_rejected',
+  VIDEO_CALL_CANCELLED: 'video_call_cancelled',
 };

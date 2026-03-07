@@ -71,6 +71,8 @@ async function emitMessageToRoomExceptBlocking(io, roomName, message, senderId) 
 function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log('Cliente conectado:', socket.id, socket.data.userId);
+    const userId = socket.data.userId;
+    if (userId) socket.join(`user:${userId}`);
     connectedUsers.set(socket.id, {
       userId: socket.data.userId,
       userName: socket.data.userName,
@@ -153,6 +155,50 @@ function registerSocketHandlers(io) {
       if (messageId && chatId) {
         io.to(`chat:${chatId}`).emit(EVENTS.MESSAGE_DELETED, { messageId, chatId });
       }
+    });
+
+    // Videollamada (Jitsi): señalización en tiempo real
+    socket.on(EVENTS.VIDEO_CALL_OFFER, async (payload) => {
+      const { chatId, roomName, callerId, callerName, callerAvatar } = payload || {};
+      const currentUserId = socket.data.userId;
+      if (!chatId || !roomName || !callerId || !callerName || currentUserId !== callerId) return;
+      try {
+        const chat = await getOrCreateChat(chatId);
+        if (!chat || !chat.participants || chat.participants.length === 0) return;
+        const callerStr = String(callerId);
+        const otherParticipants = chat.participants
+          .map((p) => (p._id ? p._id.toString() : p.toString()))
+          .filter((id) => id !== callerStr);
+        for (const targetUserId of otherParticipants) {
+          io.to(`user:${targetUserId}`).emit(EVENTS.VIDEO_CALL_INCOMING, {
+            chatId,
+            roomName,
+            callerId,
+            callerName,
+            callerAvatar: callerAvatar || null,
+          });
+        }
+      } catch (err) {
+        console.error('Error video call offer:', err);
+      }
+    });
+
+    socket.on(EVENTS.VIDEO_CALL_ANSWER, (payload) => {
+      const { chatId, roomName, callerId } = payload || {};
+      if (!callerId) return;
+      io.to(`user:${callerId}`).emit(EVENTS.VIDEO_CALL_ACCEPTED, { chatId, roomName });
+    });
+
+    socket.on(EVENTS.VIDEO_CALL_REJECT, (payload) => {
+      const { callerId } = payload || {};
+      if (!callerId) return;
+      io.to(`user:${callerId}`).emit(EVENTS.VIDEO_CALL_REJECTED, {});
+    });
+
+    socket.on(EVENTS.VIDEO_CALL_CANCEL, (payload) => {
+      const { targetUserId } = payload || {};
+      if (!targetUserId) return;
+      io.to(`user:${targetUserId}`).emit(EVENTS.VIDEO_CALL_CANCELLED, {});
     });
 
     socket.on(EVENTS.SEND_MESSAGE, async (payload) => {

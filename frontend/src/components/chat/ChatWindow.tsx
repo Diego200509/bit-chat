@@ -1,9 +1,60 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import type { Chat } from '../../types/chat'
 import { env } from '../../config/env'
+import { socket } from '../../lib/socket'
+import { SOCKET_EVENTS } from '../../constants/socket'
 import { ConfirmModal } from './ConfirmModal'
 import { Message } from './Message'
 import { MessageInput } from './MessageInput'
+
+const JITSI_BASE = 'https://meet.jit.si'
+
+/** Sonido de llamada (ringtone) con Web Audio API: dos tonos alternados. Devuelve función para detener. */
+function startRingingTone(): () => void {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    const gain = ctx.createGain()
+    gain.gain.value = 0.15
+    gain.connect(ctx.destination)
+
+    let stopped = false
+    const schedule = () => {
+      if (stopped) return
+      const t = ctx.currentTime
+      const play = (freq: number, start: number, duration: number) => {
+        const osc = ctx.createOscillator()
+        osc.frequency.value = freq
+        osc.connect(gain)
+        osc.start(start)
+        osc.stop(start + duration)
+      }
+      play(440, t, 0.2)
+      play(440, t + 0.25, 0.2)
+      play(480, t + 0.5, 0.2)
+      play(480, t + 0.75, 0.2)
+    }
+
+    schedule()
+    const interval = window.setInterval(() => {
+      if (stopped) return
+      schedule()
+    }, 1500)
+
+    return () => {
+      stopped = true
+      clearInterval(interval)
+      ctx.close().catch(() => {})
+    }
+  } catch {
+    return () => {}
+  }
+}
+
+/** Genera un nombre de sala solo con letras, números y guiones (evita errores de conexión en Jitsi). */
+function makeJitsiRoomName(): string {
+  const part = Math.random().toString(36).replace(/[^a-z0-9]/g, '').slice(0, 10)
+  return `bitchat-${part}-${Date.now()}`
+}
 
 const CHAT_BACKGROUND_PRESETS: Record<string, string> = {
   default: '',
@@ -85,6 +136,10 @@ interface ChatWindowProps {
   usersInCurrentChat?: string[]
   onDeleteMessage?: (messageId: string, scope: 'for_me' | 'for_everyone') => void
   onClearChat?: (chatId: string) => void
+  /** Nombre del usuario actual (para la videollamada) */
+  currentUserName?: string
+  /** Avatar del usuario actual (se envía al iniciar videollamada para que el otro lo vea) */
+  currentUserAvatar?: string | null
 }
 
 /**
@@ -109,13 +164,56 @@ export function ChatWindow({
   usersInCurrentChat = [],
   onDeleteMessage,
   onClearChat,
+  currentUserName = 'Yo',
+  currentUserAvatar,
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [outgoingCall, setOutgoingCall] = useState<{ chatId: string; roomName: string } | null>(null)
   const bgPickerRef = useRef<HTMLDivElement>(null)
+  const outgoingCallRef = useRef(outgoingCall)
+  const ringStopRef = useRef<(() => void) | null>(null)
+  outgoingCallRef.current = outgoingCall
+
+  useEffect(() => {
+    if (outgoingCall) {
+      ringStopRef.current = startRingingTone()
+    } else {
+      ringStopRef.current?.()
+      ringStopRef.current = null
+    }
+    return () => {
+      ringStopRef.current?.()
+      ringStopRef.current = null
+    }
+  }, [outgoingCall])
+
+  const openJitsi = useCallback((roomName: string) => {
+    const safeName = roomName.replace(/[^a-zA-Z0-9-]/g, '') || `room-${Date.now()}`
+    const url = `${JITSI_BASE}/${safeName}`
+    const w = window.open(url, 'jitsi', 'noopener,noreferrer,width=900,height=640')
+    if (!w) window.location.href = url
+  }, [])
+
+  useEffect(() => {
+    const onAccepted = (payload: { chatId: string; roomName: string }) => {
+      const current = outgoingCallRef.current
+      if (current && payload.roomName === current.roomName) {
+        openJitsi(payload.roomName)
+        setOutgoingCall(null)
+      }
+    }
+    const onRejected = () => setOutgoingCall(null)
+    socket.on(SOCKET_EVENTS.VIDEO_CALL_ACCEPTED, onAccepted)
+    socket.on(SOCKET_EVENTS.VIDEO_CALL_REJECTED, onRejected)
+    return () => {
+      socket.off(SOCKET_EVENTS.VIDEO_CALL_ACCEPTED, onAccepted)
+      socket.off(SOCKET_EVENTS.VIDEO_CALL_REJECTED, onRejected)
+    }
+  }, [openJitsi])
 
   const scrollToMessage = useCallback((messageId: string) => {
     const container = messagesContainerRef.current
@@ -242,6 +340,28 @@ export function ChatWindow({
                 onUnblock={onUnblockUser}
               />
             )}
+            {chat.otherUserId && (
+              <button
+                type="button"
+                onClick={() => {
+                  const roomName = makeJitsiRoomName()
+                  socket.emit(SOCKET_EVENTS.VIDEO_CALL_OFFER, {
+                    chatId: chat.id,
+                    roomName,
+                    callerId: currentUserId,
+                    callerName: currentUserName,
+                    callerAvatar: currentUserAvatar ?? null,
+                  })
+                  setOutgoingCall({ chatId: chat.id, roomName })
+                }}
+                disabled={!!outgoingCall}
+                className="rounded-lg p-2 text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-bitchat-cyan disabled:opacity-50"
+                title="Videollamada"
+                aria-label="Videollamada"
+              >
+                <VideoCallIcon className="h-5 w-5" />
+              </button>
+            )}
             {onClearChat && (
               <button
                 type="button"
@@ -340,6 +460,51 @@ export function ChatWindow({
           onCancel={() => setShowClearConfirm(false)}
         />
       )}
+
+      {/* Llamada saliente: foto y nombre de a quién llamas */}
+      {outgoingCall && chat && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-bitchat-sidebar border border-bitchat-border shadow-2xl overflow-hidden">
+            <div className="p-6 pb-4 text-center">
+              <div className="relative inline-block mb-4">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-bitchat-panel border-4 border-bitchat-cyan/30 flex items-center justify-center animate-pulse">
+                  {chat.avatar || chat.image ? (
+                    <img
+                      src={(() => {
+                        const av = chat.avatar || chat.image!
+                        return av.startsWith('http') || av.startsWith('data:') ? av : `${env.apiUrl.replace(/\/$/, '')}${av.startsWith('/') ? '' : '/'}${av}`
+                      })()}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-4xl text-slate-500">👤</span>
+                  )}
+                </div>
+                <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-bitchat-cyan/80 text-bitchat-blue-dark animate-pulse">
+                  <VideoCallIcon className="h-3.5 w-3.5" />
+                </span>
+              </div>
+              <p className="text-slate-400 text-sm font-medium">Llamando a</p>
+              <p className="text-slate-100 text-xl font-semibold mt-1">{chat.name}</p>
+            </div>
+            <div className="p-4 pt-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (chat.otherUserId) {
+                    socket.emit(SOCKET_EVENTS.VIDEO_CALL_CANCEL, { targetUserId: chat.otherUserId })
+                  }
+                  setOutgoingCall(null)
+                }}
+                className="w-full rounded-xl py-3.5 bg-red-600 text-white font-semibold hover:bg-red-500 active:opacity-90 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -409,6 +574,14 @@ function WallpaperIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
       <path fillRule="evenodd" d="M1.5 6a2.25 2.25 0 0 1 2.25-2.25h16.5A2.25 2.25 0 0 1 22.5 6v12a2.25 2.25 0 0 1-2.25 2.25H3.75A2.25 2.25 0 0 1 1.5 18V6ZM3 16.06V18h6v-6.06l-2.97 2.97a.75.75 0 0 1-1.06 0L3 16.06Zm10.5-1.06 2.25 2.25v.001h.001l2.25-2.25v-6.5h-4.5v6.5Zm-6.75-6.75 2.25 2.25v6.5H3v-6.5l2.25-2.25a.75.75 0 0 1 1.06 0Zm1.06 0 2.97-2.97a.75.75 0 0 1 1.06 0L14.94 8 12 5.06 9.06 8l2.97 2.97a.75.75 0 0 1 0 1.06L9.06 14l.94.94h6.5v-6.5l-2.25-2.25a.75.75 0 0 1 0-1.06L16.94 5.06 14 2.06l-2.25 2.25a.75.75 0 0 1 0 1.06L14.94 6.5 12 9.44 9.06 6.5l1.06-1.06a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function VideoCallIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
     </svg>
   )
 }
