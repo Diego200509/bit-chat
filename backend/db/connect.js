@@ -1,9 +1,6 @@
 const mongoose = require('mongoose');
 const config = require('../config');
 
-/**
- * Conecta a MongoDB. Llamar antes de levantar el servidor HTTP.
- */
 async function connectDb() {
   try {
     await mongoose.connect(config.mongoUri);

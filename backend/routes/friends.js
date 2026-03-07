@@ -5,7 +5,6 @@ const { User, Friendship } = require('../models');
 const router = express.Router();
 router.use(authMiddleware);
 
-/** POST /friends/request - Enviar solicitud. Body: { addresseeId } */
 router.post('/request', async (req, res) => {
   try {
     const { addresseeId } = req.body || {};
@@ -45,7 +44,6 @@ router.post('/request', async (req, res) => {
   }
 });
 
-/** GET /friends - Lista amigos (accepted) y solicitudes (pending: enviadas y recibidas) */
 router.get('/', async (req, res) => {
   try {
     const [asRequester, asAddressee] = await Promise.all([
@@ -74,7 +72,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-/** PATCH /friends/request/:id - Aceptar o rechazar. Body: { action: 'accept' | 'reject' } */
 router.patch('/request/:id', async (req, res) => {
   try {
     const { id } = req.params;

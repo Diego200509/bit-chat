@@ -31,7 +31,6 @@ const upload = multer({
 
 router.use(authMiddleware);
 
-/** POST /upload - Sube una imagen. multipart/form-data con campo "file". Devuelve { url } */
 router.post('/', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se envió ningún archivo' });
   const url = `/uploads/${req.file.filename}`;

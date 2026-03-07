@@ -9,7 +9,6 @@ import { MessageInput } from './MessageInput'
 
 const JITSI_BASE = 'https://meet.jit.si'
 
-/** Sonido de llamada (ringtone) con Web Audio API: dos tonos alternados. Devuelve función para detener. */
 function startRingingTone(): () => void {
   try {
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
@@ -50,7 +49,6 @@ function startRingingTone(): () => void {
   }
 }
 
-/** Genera un nombre de sala solo con letras, números y guiones (evita errores de conexión en Jitsi). */
 function makeJitsiRoomName(): string {
   const part = Math.random().toString(36).replace(/[^a-z0-9]/g, '').slice(0, 10)
   return `bitchat-${part}-${Date.now()}`
@@ -130,21 +128,14 @@ interface ChatWindowProps {
   onBlockUser?: (userId: string) => void
   onUnblockUser?: (userId: string) => void
   blockedUserIds?: string[]
-  /** Solo en chat directo: true = en línea, false = desconectado, undefined = grupo o sin dato */
   otherUserOnline?: boolean
-  /** IDs de usuarios que tienen este chat abierto (para grupos: "en línea" = dentro del chat) */
   usersInCurrentChat?: string[]
   onDeleteMessage?: (messageId: string, scope: 'for_me' | 'for_everyone') => void
   onClearChat?: (chatId: string) => void
-  /** Nombre del usuario actual (para la videollamada) */
   currentUserName?: string
-  /** Avatar del usuario actual (se envía al iniciar videollamada para que el otro lo vea) */
   currentUserAvatar?: string | null
 }
 
-/**
- * Ventana de conversación: cabecera, lista de mensajes y input.
- */
 export function ChatWindow({
   chat,
   onSendMessage,
@@ -257,7 +248,6 @@ export function ChatWindow({
     isOwn: m.senderId === currentUserId,
   }))
   const pinned = messagesWithOwn.filter((m) => m.pinned)
-  // Orden cronológico para que el mensaje fijado aparezca en su posición real del historial
   const messagesChronological = [...messagesWithOwn].sort((a, b) => a.timestamp - b.timestamp)
   const chatBgStyle = chat.chatBackground && CHAT_BACKGROUND_PRESETS[chat.chatBackground]
     ? CHAT_BACKGROUND_PRESETS[chat.chatBackground]
@@ -461,7 +451,6 @@ export function ChatWindow({
         />
       )}
 
-      {/* Llamada saliente: foto y nombre de a quién llamas */}
       {outgoingCall && chat && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-bitchat-sidebar border border-bitchat-border shadow-2xl overflow-hidden">

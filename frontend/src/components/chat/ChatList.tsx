@@ -69,9 +69,6 @@ interface ChatListProps {
   onToggleTheme?: () => void
 }
 
-/**
- * Sidebar con la lista de conversaciones (estilo WhatsApp). Fijados arriba; archivados en sección aparte.
- */
 export function ChatList({
   chats,
   currentChatId,

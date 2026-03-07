@@ -113,9 +113,7 @@ function ChatLayout() {
     async (userId: string) => {
       try {
         await blockUser(userId)
-      } catch {
-        // toast o mensaje
-      }
+      } catch {}
     },
     [blockUser]
   )
@@ -124,9 +122,7 @@ function ChatLayout() {
     async (userId: string) => {
       try {
         await unblockUser(userId)
-      } catch {
-        // toast o mensaje
-      }
+      } catch {}
     },
     [unblockUser]
   )
@@ -206,7 +202,6 @@ function ChatLayout() {
         </div>
       )}
 
-      {/* Llamada entrante (global: se ve desde cualquier pantalla) */}
       {incomingCall && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-bitchat-sidebar border border-bitchat-border shadow-2xl overflow-hidden">

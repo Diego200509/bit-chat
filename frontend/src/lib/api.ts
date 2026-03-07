@@ -26,7 +26,6 @@ export interface AuthResponse {
   user: AuthUser
 }
 
-// --- Users & Friends (Fase 2) ---
 export interface SearchUser {
   id: string
   name: string
@@ -228,7 +227,6 @@ export async function unpinMessage(messageId: string): Promise<unknown> {
   return data
 }
 
-/** Eliminar mensaje. scope: 'for_me' (solo para mí) o 'for_everyone' (solo autor). */
 export async function deleteMessage(
   messageId: string,
   scope: 'for_me' | 'for_everyone'
@@ -243,7 +241,6 @@ export async function deleteMessage(
   return data
 }
 
-/** Borrar conversación para mí (oculta todos los mensajes del chat para el usuario actual). */
 export async function clearChat(chatId: string): Promise<{ chatId: string; modifiedCount: number }> {
   const res = await fetch(`${env.apiUrl}/chats/${chatId}/clear`, { method: 'POST', headers: authHeaders() })
   const data = await res.json()
@@ -251,7 +248,6 @@ export async function clearChat(chatId: string): Promise<{ chatId: string; modif
   return data
 }
 
-/** Sube una imagen. Devuelve la URL pública (ej. /uploads/xxx). */
 export async function uploadImage(file: File): Promise<string> {
   const form = new FormData()
   form.append('file', file)
@@ -267,7 +263,6 @@ export async function uploadImage(file: File): Promise<string> {
   return data.url
 }
 
-// --- Auth ---
 export async function register(
   email: string,
   password: string,

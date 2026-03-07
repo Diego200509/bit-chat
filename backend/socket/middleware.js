@@ -2,11 +2,6 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { User } = require('../models');
 
-/**
- * Middleware de Socket.io: verifica JWT en handshake.auth.token
- * y asigna socket.data.userId y socket.data.userName (desde la DB).
- * Sin token válido la conexión se rechaza.
- */
 async function authMiddleware(socket, next) {
   const token = socket.handshake.auth?.token;
   if (!token) {

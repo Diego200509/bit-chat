@@ -40,9 +40,7 @@ export function EditProfileModal({
     try {
       const url = await api.uploadImage(file)
       setAvatar(url)
-    } catch {
-      // error ya mostrado por api
-    } finally {
+    } catch {} finally {
       setUploading(false)
       e.target.value = ''
     }

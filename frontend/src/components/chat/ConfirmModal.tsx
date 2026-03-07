@@ -3,7 +3,6 @@ interface ConfirmModalProps {
   message: string
   confirmLabel: string
   cancelLabel?: string
-  /** Si true, el botón de confirmar usa estilo de peligro (rojo) */
   danger?: boolean
   onConfirm: () => void
   onCancel: () => void

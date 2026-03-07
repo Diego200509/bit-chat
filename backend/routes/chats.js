@@ -6,7 +6,6 @@ const { getOrCreateDirectChat, getChatsForUser, createGroupChat, clearChatForMe 
 const router = express.Router();
 router.use(authMiddleware);
 
-/** GET /chats - Lista mis chats (General + directos + grupos). Incluye isBlocked, isPinned, isArchived. */
 router.get('/', async (req, res) => {
   try {
     const list = await getChatsForUser(req.userId);
@@ -26,7 +25,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-/** POST /chats/direct - Obtener o crear chat directo. Body: { otherUserId } */
 router.post('/direct', async (req, res) => {
   try {
     const { otherUserId } = req.body || {};
@@ -49,7 +47,6 @@ router.post('/direct', async (req, res) => {
   }
 });
 
-/** POST /chats/group - Crear grupo. Body: { name, image?, participantIds: string[] } */
 router.post('/group', async (req, res) => {
   try {
     const { name, image, participantIds } = req.body || {};
@@ -72,7 +69,6 @@ function resolveChatId(id, userId) {
   return Chat.findOne({ _id: id, participants: userId });
 }
 
-/** POST /chats/:id/pin - Fijar chat para el usuario actual */
 router.post('/:id/pin', async (req, res) => {
   try {
     const chat = await resolveChatId(req.params.id, req.userId);
@@ -85,7 +81,6 @@ router.post('/:id/pin', async (req, res) => {
   }
 });
 
-/** POST /chats/:id/unpin - Quitar fijado */
 router.post('/:id/unpin', async (req, res) => {
   try {
     const chat = await resolveChatId(req.params.id, req.userId);
@@ -98,7 +93,6 @@ router.post('/:id/unpin', async (req, res) => {
   }
 });
 
-/** POST /chats/:id/archive - Archivar chat para el usuario actual */
 router.post('/:id/archive', async (req, res) => {
   try {
     const id = req.params.id === 'chat-1' ? null : req.params.id;
@@ -113,7 +107,6 @@ router.post('/:id/archive', async (req, res) => {
   }
 });
 
-/** POST /chats/:id/unarchive - Desarchivar */
 router.post('/:id/unarchive', async (req, res) => {
   try {
     const id = req.params.id === 'chat-1' ? null : req.params.id;
@@ -128,7 +121,6 @@ router.post('/:id/unarchive', async (req, res) => {
   }
 });
 
-/** POST /chats/:id/clear - Borrar conversación para mí (soft delete de todos los mensajes para el usuario actual) */
 router.post('/:id/clear', async (req, res) => {
   try {
     const chatId = req.params.id === 'chat-1' ? 'chat-1' : req.params.id;
@@ -141,7 +133,6 @@ router.post('/:id/clear', async (req, res) => {
   }
 });
 
-/** PATCH /chats/:id - Actualizar chat (p. ej. fondo). Body: { chatBackground?: string | null } */
 router.patch('/:id', async (req, res) => {
   try {
     const chat = await resolveChatId(req.params.id, req.userId);

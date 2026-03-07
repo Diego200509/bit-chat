@@ -70,9 +70,6 @@ function fullUrl(path: string): string {
   return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
 }
 
-/**
- * Un solo mensaje: texto, imagen, sticker y reacciones.
- */
 export function Message({ message, currentUserId, onReaction, onEditMessage, onPinMessage, onUnpinMessage, onDeleteMessage }: MessageProps) {
   const isOwn = message.isOwn ?? false
   const [showReactions, setShowReactions] = useState(false)
@@ -160,7 +157,6 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
     setEditText(message.text || '')
   }
 
-  // Burbuja de mensaje eliminado para todos (mismos colores que el resto del chat)
   if (message.deletedForEveryone) {
     const deletedByMe = message.deletedByUserId != null && String(message.deletedByUserId) === String(currentUserId ?? '')
     const text = deletedByMe ? 'Eliminaste este mensaje.' : 'Este mensaje fue eliminado.'

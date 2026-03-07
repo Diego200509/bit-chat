@@ -30,14 +30,9 @@ function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean; unread?:
 }
 
 export interface UseChatOptions {
-  /** Solo cuando devuelve true se marcará el chat como leído al recibir mensajes (p. ej. cuando el panel de chat está visible, no en lista móvil). */
   getIsChatPanelVisible?: () => boolean
 }
 
-/**
- * Hook que encapsula el estado del chat y la lógica de Socket.io.
- * Carga la lista de chats desde la API y permite abrir chat directo.
- */
 export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, options: UseChatOptions = {}) {
   const { getIsChatPanelVisible } = options
   const showToast = useToast()
@@ -56,7 +51,6 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     ? chats.find((c) => c.id === currentChatId) ?? null
     : null
 
-  // Cargar lista de chats desde la API al montar (usuario autenticado)
   useEffect(() => {
     let cancelled = false
     api
@@ -79,7 +73,6 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     }
   }, [userId])
 
-  // Conexión: el usuario ya viene del JWT en el backend (auth en handshake)
   useEffect(() => {
     const onConnect = () => setConnected(true)
     const onDisconnect = () => setConnected(false)
@@ -92,7 +85,6 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     }
   }, [])
 
-  // Actualizar "última vez" cuando alguien se desconecta
   useEffect(() => {
     const onLastSeen = (payload: { userId?: string; lastSeenAt?: number }) => {
       const { userId: uId, lastSeenAt } = payload
@@ -107,14 +99,12 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     }
   }, [])
 
-  // Unirse a las salas de todos los chats para recibir NEW_MESSAGE en tiempo real (lista + unread)
   useEffect(() => {
     if (chats.length === 0) return
     const chatIds = chats.map((c) => c.id)
     socket.emit(SOCKET_EVENTS.JOIN_CHAT_ROOMS, chatIds)
   }, [chats])
 
-  // Presencia por chat: quién tiene abierto cada chat (solo para mostrar "en línea" en grupos)
   useEffect(() => {
     const onPresence = (payload: { chatId?: string; userIds?: string[] }) => {
       const { chatId: cId, userIds: ids } = payload
@@ -127,7 +117,6 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     }
   }, [])
 
-  // Al abrir un chat: salir del anterior, entrar al nuevo, pedir historial y marcar como leído
   useEffect(() => {
     const prev = prevChatIdRef.current
     if (prev && prev !== currentChatId) {
@@ -177,7 +166,6 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     }
   }
 
-  // Historial al abrir un chat (desde MongoDB)
   useEffect(() => {
     const onHistory = ({
       chatId,
@@ -228,7 +216,6 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     }
   }, [])
 
-  // Recibir mensajes en tiempo real: actualizar lista (lastMessage, unread) y marcar visto si estás en el chat
   useEffect(() => {
     const onMessage = (msg: SocketMessage & { type?: string; imageUrl?: string | null; stickerUrl?: string | null; editedAt?: number | null; readBy?: string[]; pinned?: boolean; reactions?: Array<{ userId: string; emoji: string }> }) => {
       const message: Message = normalizeMessage({
@@ -294,7 +281,6 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     }
   }, [userId, userName])
 
-  // Mensaje eliminado para todos (broadcast): mostrar placeholder "Este mensaje fue eliminado"
   useEffect(() => {
     const onDeleted = (payload: { messageId?: string; chatId?: string }) => {
       const { messageId: mid, chatId: cid } = payload
@@ -318,7 +304,6 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     }
   }, [])
 
-  // Actualizar mensaje (reacciones, edición, fijado, leído)
   useEffect(() => {
     const onUpdated = (updated: {
       id: string
@@ -377,18 +362,14 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
         return [asChat, ...prev]
       })
       setCurrentChatId(item.id)
-    } catch {
-      // error ya mostrado por quien llame
-    }
+    } catch {}
   }, [])
 
   const refreshChats = useCallback(async () => {
     try {
       const list = await api.getChats()
       setChats(list.map(listItemToChat))
-    } catch {
-      // keep current list
-    }
+    } catch {}
   }, [])
 
   const sortChats = useCallback((list: Chat[]) => {
@@ -403,36 +384,28 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     try {
       await api.pinChat(chatId)
       setChats((prev) => sortChats(prev.map((c) => (c.id === chatId ? { ...c, isPinned: true } : c))))
-    } catch {
-      // error handled by caller
-    }
+    } catch {}
   }, [sortChats])
 
   const unpinChat = useCallback(async (chatId: string) => {
     try {
       await api.unpinChat(chatId)
       setChats((prev) => sortChats(prev.map((c) => (c.id === chatId ? { ...c, isPinned: false } : c))))
-    } catch {
-      // error handled by caller
-    }
+    } catch {}
   }, [sortChats])
 
   const archiveChat = useCallback(async (chatId: string) => {
     try {
       await api.archiveChat(chatId)
       setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, isArchived: true } : c)))
-    } catch {
-      // error handled by caller
-    }
+    } catch {}
   }, [])
 
   const unarchiveChat = useCallback(async (chatId: string) => {
     try {
       await api.unarchiveChat(chatId)
       setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, isArchived: false } : c)))
-    } catch {
-      // error handled by caller
-    }
+    } catch {}
   }, [])
 
   const createGroupAndSelect = useCallback(async (name: string, participantIds: string[], image?: string | null) => {
@@ -522,9 +495,7 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
     try {
       await api.updateChatBackground(chatId, chatBackground)
       setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, chatBackground } : c)))
-    } catch {
-      // error handled by caller
-    }
+    } catch {}
   }, [])
 
   const deleteMessage = useCallback(

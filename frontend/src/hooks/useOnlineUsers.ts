@@ -14,10 +14,6 @@ function parseOnlineUserIds(payload: unknown): Set<string> {
   return ids
 }
 
-/**
- * Lista de usuarios visibles como "en línea" (conectados y visibility === 'visible').
- * El servidor emite USERS_ONLINE al conectar, al desconectar y al cambiar visibilidad.
- */
 export function useOnlineUsers(): Set<string> {
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
 

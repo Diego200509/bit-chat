@@ -5,7 +5,6 @@ const { User } = require('../models');
 const router = express.Router();
 router.use(authMiddleware);
 
-/** PATCH /users/me - Actualizar perfil. Body: { nickname?, avatar?, visibility? } */
 router.patch('/me', async (req, res) => {
   try {
     const body = req.body || {};
@@ -38,7 +37,6 @@ router.patch('/me', async (req, res) => {
   }
 });
 
-/** GET /users/blocked - Lista de ids de usuarios que yo he bloqueado */
 router.get('/blocked', async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('blockedUsers').lean();
@@ -50,7 +48,6 @@ router.get('/blocked', async (req, res) => {
   }
 });
 
-/** GET /users/search?q=... - Buscar usuarios por nombre o email (excluye yo y bloqueados) */
 router.get('/search', async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
@@ -82,7 +79,6 @@ router.get('/search', async (req, res) => {
   }
 });
 
-/** POST /users/block - Bloquear usuario. Body: { userId } */
 router.post('/block', async (req, res) => {
   try {
     const { userId } = req.body || {};
@@ -99,7 +95,6 @@ router.post('/block', async (req, res) => {
   }
 });
 
-/** DELETE /users/block/:userId - Desbloquear */
 router.delete('/block/:userId', async (req, res) => {
   try {
     const { userId } = req.params;

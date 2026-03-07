@@ -11,10 +11,7 @@ const {
 } = require('../services/chatService');
 const { User } = require('../models');
 
-/** Usuarios conectados: socketId -> { userId, userName } */
 const connectedUsers = new Map();
-
-/** Presencia por chat: chatId -> Set de userId que tienen ese chat abierto (solo para grupos/directos) */
 const chatPresence = new Map();
 
 function emitChatPresence(io, chatId) {
@@ -23,7 +20,6 @@ function emitChatPresence(io, chatId) {
   io.to(`chat:${chatId}`).emit(EVENTS.CHAT_PRESENCE, { chatId, userIds });
 }
 
-/** Devuelve solo los usuarios conectados que tienen visibility === 'visible' (modo invisible no aparece en línea) */
 async function getVisibleOnlineUsers() {
   const list = Array.from(connectedUsers.values());
   const userIds = [...new Set(list.map((u) => u.userId).filter(Boolean))];
@@ -40,10 +36,6 @@ function generateMessageId() {
   return `m-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/**
- * Emite new_message solo a los sockets de la sala que NO tienen bloqueado al sender.
- * En chats directos: quien te tiene bloqueado no recibe tu mensaje.
- */
 async function emitMessageToRoomExceptBlocking(io, roomName, message, senderId) {
   const sockets = await io.in(roomName).fetchSockets();
   const senderIdStr = String(senderId);
@@ -57,17 +49,11 @@ async function emitMessageToRoomExceptBlocking(io, roomName, message, senderId) 
       const user = await User.findById(recipientId).select('blockedUsers').lean();
       const blocked = (user?.blockedUsers || []).map((b) => b.toString());
       if (blocked.includes(senderIdStr)) continue;
-    } catch {
-      // si falla la consulta, enviamos por si acaso
-    }
+    } catch {}
     s.emit(EVENTS.NEW_MESSAGE, message);
   }
 }
 
-/**
- * Registra todos los manejadores de Socket.io sobre una instancia de io.
- * @param {import('socket.io').Server} io
- */
 function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log('Cliente conectado:', socket.id, socket.data.userId);
@@ -157,7 +143,6 @@ function registerSocketHandlers(io) {
       }
     });
 
-    // Videollamada (Jitsi): señalización en tiempo real
     socket.on(EVENTS.VIDEO_CALL_OFFER, async (payload) => {
       const { chatId, roomName, callerId, callerName, callerAvatar } = payload || {};
       const currentUserId = socket.data.userId;

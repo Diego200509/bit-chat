@@ -2,7 +2,6 @@ import { useState, useRef, type FormEvent } from 'react'
 import * as api from '../../lib/api'
 
 const EMOJIS = ['😀', '😂', '❤️', '👍', '👎', '😢', '😮', '🎉', '🔥', '👋', '🤔', '✅']
-// Stickers: path para enviar y emoji para mostrar en el selector (evita depender de cargar imágenes del backend)
 const STICKERS: { path: string; emoji: string }[] = [
   { path: '/stickers/1.svg', emoji: '😀' },
   { path: '/stickers/2.svg', emoji: '😂' },
@@ -20,9 +19,6 @@ interface MessageInputProps {
   placeholder?: string
 }
 
-/**
- * Input con emoji picker, adjuntar imagen y stickers.
- */
 export function MessageInput({
   onSend,
   onSendImage,
@@ -56,9 +52,7 @@ export function MessageInput({
     try {
       const url = await api.uploadImage(file)
       onSendImage(url)
-    } catch {
-      // error ya mostrado o silenciar
-    } finally {
+    } catch {} finally {
       setUploading(false)
     }
   }

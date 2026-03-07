@@ -72,7 +72,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.setAuthToken(token)
   }, [token])
 
-  // Conectar socket cuando hay token; desconectar al cerrar sesión
   useEffect(() => {
     if (!token) {
       socket.disconnect()

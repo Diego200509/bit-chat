@@ -1,9 +1,6 @@
 const mongoose = require('mongoose');
 const { Chat, Message, User } = require('../models');
 
-/**
- * Obtiene un chat por id o crea el chat "General" si se pide por nombre.
- */
 async function getOrCreateChat(chatId) {
   if (mongoose.Types.ObjectId.isValid(chatId) && new mongoose.Types.ObjectId(chatId).toString() === chatId) {
     const chat = await Chat.findById(chatId);
@@ -19,10 +16,6 @@ async function getOrCreateChat(chatId) {
   return null;
 }
 
-/**
- * Guarda un mensaje y devuelve el objeto para emitir.
- * opts: { text?, type?, imageUrl?, stickerUrl? } — type por defecto 'text'.
- */
 async function saveMessage(chatId, senderId, senderName, opts = {}) {
   const text = typeof opts === 'string' ? opts : (opts.text ?? '');
   const type = (typeof opts === 'object' && opts.type) || 'text';
@@ -91,7 +84,6 @@ function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallba
   };
 }
 
-/** Payload mínimo para mensaje eliminado "para todos" (para mostrar placeholder en el historial). */
 function deletedMessageToPayload(msg, resolvedChatId, senderDisplayName) {
   const senderId = msg.sender
     ? (typeof msg.sender === 'object' && msg.sender._id != null ? msg.sender._id.toString() : msg.sender.toString())
@@ -117,10 +109,6 @@ function deletedMessageToPayload(msg, resolvedChatId, senderDisplayName) {
   };
 }
 
-/**
- * Historial de mensajes de un chat (para cargar al abrir).
- * Si currentUserId se pasa, se ocultan mensajes de usuarios que ese usuario tiene bloqueados.
- */
 async function getMessageHistory(chatId, limit = 100, currentUserId = null) {
   const chat = await getOrCreateChat(chatId);
   if (!chat) return [];
@@ -169,9 +157,6 @@ async function getMessageHistory(chatId, limit = 100, currentUserId = null) {
   return combined;
 }
 
-/**
- * Obtiene o crea un chat directo entre dos usuarios (solo si son amigos si quieres; por ahora sin restricción).
- */
 async function getOrCreateDirectChat(userId1, userId2) {
   const id1 = new mongoose.Types.ObjectId(userId1);
   const id2 = new mongoose.Types.ObjectId(userId2);
@@ -188,9 +173,6 @@ async function getOrCreateDirectChat(userId1, userId2) {
   return chat;
 }
 
-/**
- * Lista chats del usuario: General + directos + grupos. Incluye isPinned, isArchived.
- */
 async function getChatsForUser(userId, limit = 50) {
   const userObjId = new mongoose.Types.ObjectId(userId);
   const { Message } = require('../models');
@@ -290,9 +272,6 @@ async function getChatsForUser(userId, limit = 50) {
   return list;
 }
 
-/**
- * Crea un chat de tipo grupo.
- */
 async function createGroupChat(creatorId, name, participantIds = [], image = null) {
   const allIds = [new mongoose.Types.ObjectId(creatorId), ...participantIds.map((id) => new mongoose.Types.ObjectId(id))];
   const uniqueIds = [...new Set(allIds.map((id) => id.toString()))].map((id) => new mongoose.Types.ObjectId(id));
@@ -306,9 +285,6 @@ async function createGroupChat(creatorId, name, participantIds = [], image = nul
   return chat;
 }
 
-/**
- * Añade o quita una reacción de un mensaje. Devuelve el mensaje actualizado para emitir.
- */
 async function toggleReaction(messageId, userId, emoji) {
   if (!messageId || !userId || !emoji || typeof emoji !== 'string') return null;
   const msg = await Message.findById(messageId);
@@ -336,9 +312,6 @@ async function toggleReaction(messageId, userId, emoji) {
   return messageToPayload(msg, resolvedChatId, senderName, null, senderAvatar);
 }
 
-/**
- * Edita el texto de un mensaje. Solo el autor, solo tipo text.
- */
 async function editMessage(messageId, userId, text) {
   if (!messageId || !userId || typeof text !== 'string') return null;
   const msg = await Message.findById(messageId);
@@ -361,9 +334,6 @@ async function editMessage(messageId, userId, text) {
   return messageToPayload(msg, resolvedChatId, senderName, null, senderAvatar);
 }
 
-/**
- * Marca todos los mensajes del chat como leídos por el usuario.
- */
 async function markChatAsRead(chatId, userId) {
   if (!chatId || !userId) return;
   const chat = await getOrCreateChat(chatId);
@@ -379,10 +349,6 @@ async function markChatAsRead(chatId, userId) {
   );
 }
 
-/**
- * Fija un mensaje (solo uno por chat: desfija el anterior).
- * Devuelve { pinned, unpinned } para emitir ambos al cliente.
- */
 async function pinMessage(messageId, userId) {
   if (!messageId || !userId) return null;
   const msg = await Message.findById(messageId);
@@ -422,9 +388,6 @@ async function pinMessage(messageId, userId) {
   return { pinned: pinnedPayload, unpinned: unpinnedPayload };
 }
 
-/**
- * Desfija un mensaje.
- */
 async function unpinMessage(messageId, userId) {
   if (!messageId || !userId) return null;
   const msg = await Message.findById(messageId);
@@ -457,9 +420,6 @@ async function unpinMessage(messageId, userId) {
   return messageToPayload(msg, resolvedChatId, senderName, null, senderAvatar);
 }
 
-/**
- * Borrar mensaje "para mí" (soft delete local). Cualquier usuario puede.
- */
 async function deleteMessageForMe(messageId, userId) {
   if (!messageId || !userId) return null;
   const msg = await Message.findById(messageId);
@@ -473,9 +433,6 @@ async function deleteMessageForMe(messageId, userId) {
   return { messageId: msg._id.toString(), chatId: msg.chat.toString(), scope: 'for_me' };
 }
 
-/**
- * Borrar mensaje "para todos" (soft delete global). Solo el autor; en grupo solo el autor por ahora.
- */
 async function deleteMessageForEveryone(messageId, userId) {
   if (!messageId || !userId) return null;
   const msg = await Message.findById(messageId);
@@ -489,9 +446,6 @@ async function deleteMessageForEveryone(messageId, userId) {
   return { messageId: msg._id.toString(), chatId: msg.chat.toString(), scope: 'for_everyone' };
 }
 
-/**
- * Borrar conversación "para mí": marca todos los mensajes del chat como deletedFor este usuario.
- */
 async function clearChatForMe(chatId, userId) {
   if (!chatId || !userId) return null;
   const chat = await getOrCreateChat(chatId);

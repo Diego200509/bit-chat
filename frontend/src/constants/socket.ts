@@ -1,9 +1,4 @@
-/**
- * Nombres de eventos Socket.io (deben coincidir con el backend).
- * Un solo lugar para evitar typos y facilitar cambios.
- */
 export const SOCKET_EVENTS = {
-  // Cliente -> Servidor
   SET_USER: 'set_user',
   JOIN_CHAT: 'join_chat',
   JOIN_CHAT_ROOMS: 'join_chat_rooms',
@@ -20,7 +15,6 @@ export const SOCKET_EVENTS = {
   VIDEO_CALL_REJECT: 'video_call_reject',
   VIDEO_CALL_CANCEL: 'video_call_cancel',
 
-  // Servidor -> Cliente
   NEW_MESSAGE: 'new_message',
   MESSAGE_UPDATED: 'message_updated',
   MESSAGE_DELETED: 'message_deleted',

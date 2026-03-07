@@ -5,7 +5,6 @@ const { editMessage, pinMessage, unpinMessage, deleteMessageForMe, deleteMessage
 const router = express.Router();
 router.use(authMiddleware);
 
-/** PATCH /messages/:id - Editar mensaje (solo autor, solo tipo text). Body: { text } */
 router.patch('/:id', async (req, res) => {
   try {
     const updated = await editMessage(req.params.id, req.userId, req.body?.text ?? '');
@@ -17,7 +16,6 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-/** POST /messages/:id/pin - Fijar mensaje. Devuelve { pinned, unpinned? } */
 router.post('/:id/pin', async (req, res) => {
   try {
     const result = await pinMessage(req.params.id, req.userId);
@@ -29,7 +27,6 @@ router.post('/:id/pin', async (req, res) => {
   }
 });
 
-/** POST /messages/:id/unpin - Desfijar mensaje */
 router.post('/:id/unpin', async (req, res) => {
   try {
     const updated = await unpinMessage(req.params.id, req.userId);
@@ -41,7 +38,6 @@ router.post('/:id/unpin', async (req, res) => {
   }
 });
 
-/** DELETE /messages/:id - Eliminar mensaje. Body: { scope: 'for_me' | 'for_everyone' } */
 router.delete('/:id', async (req, res) => {
   try {
     const scope = (req.body?.scope || req.query?.scope || 'for_me') === 'for_everyone' ? 'for_everyone' : 'for_me';

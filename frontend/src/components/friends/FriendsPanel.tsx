@@ -47,9 +47,7 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
     try {
       await sendRequest(addresseeId)
       setSearchResults((prev) => prev.filter((u) => u.id !== addresseeId))
-    } catch {
-      // error en useFriends o mostrar toast
-    } finally {
+    } catch {} finally {
       setSendingId(null)
     }
   }

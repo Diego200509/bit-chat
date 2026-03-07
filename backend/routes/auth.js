@@ -13,7 +13,6 @@ function signToken(user) {
   );
 }
 
-/** POST /auth/register - Crear usuario */
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body || {};
@@ -47,7 +46,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-/** POST /auth/login - Iniciar sesión */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;

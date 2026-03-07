@@ -1,7 +1,3 @@
-/**
- * Configuración de entorno y constantes de la app.
- * Las variables VITE_* se exponen al cliente en build time.
- */
 const API_PORT = import.meta.env.VITE_API_PORT || '3001'
 const defaultBaseUrl =
   typeof window !== 'undefined'
