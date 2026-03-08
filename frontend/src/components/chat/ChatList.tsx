@@ -1,51 +1,17 @@
-import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { Chat } from '../../types/chat'
 import { ConfirmModal } from './ConfirmModal'
 import { CreateGroupModal } from './CreateGroupModal'
 import { env } from '../../config/env'
 
 function LastMessagePreview({ text }: { text: string }) {
-  const ref = useRef<HTMLParagraphElement>(null)
-  const [isTruncated, setIsTruncated] = useState(false)
-
-  const checkTruncated = () => {
-    const el = ref.current
-    if (!el) return
-    setIsTruncated(el.scrollWidth > el.clientWidth)
-  }
-
-  useLayoutEffect(() => {
-    checkTruncated()
-  }, [text])
-
-  useEffect(() => {
-    window.addEventListener('resize', checkTruncated)
-    return () => window.removeEventListener('resize', checkTruncated)
-  }, [])
-
-  const preview = (
+  return (
     <p
-      ref={ref}
-      className="text-sm text-slate-500 [data-theme=light]:text-slate-600 truncate max-w-[180px] sm:max-w-[220px]"
+      title={text}
+      className="text-sm text-bitchat-fg-muted truncate max-w-[180px] sm:max-w-[220px]"
     >
       {text}
     </p>
-  )
-
-  if (!isTruncated) return preview
-
-  return (
-    <div className="group/preview relative">
-      {preview}
-      <div
-        className="pointer-events-none invisible absolute bottom-full left-0 z-30 mb-1 max-h-40 w-72 overflow-y-auto rounded-lg border border-bitchat-border bg-bitchat-sidebar px-3 py-2 shadow-xl group-hover/preview:visible"
-        role="tooltip"
-      >
-        <p className="whitespace-pre-wrap break-words text-sm text-slate-200">
-          {text}
-        </p>
-      </div>
-    </div>
   )
 }
 
@@ -157,7 +123,7 @@ export function ChatList({
                   e.stopPropagation()
                   setMenuOpenId(menuOpen ? null : chat.id)
                 }}
-                className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-slate-200"
+                className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg"
                 aria-label="Opciones"
               >
                 <DotsIcon />
@@ -172,7 +138,7 @@ export function ChatList({
                           onUnpinChat(chat.id)
                           setMenuOpenId(null)
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-bitchat-panel"
+                        className="w-full px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
                       >
                         Desfijar
                       </button>
@@ -185,7 +151,7 @@ export function ChatList({
                           onPinChat(chat.id)
                           setMenuOpenId(null)
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-bitchat-panel"
+                        className="w-full px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
                       >
                         Fijar
                       </button>
@@ -199,7 +165,7 @@ export function ChatList({
                           onUnarchiveChat(chat.id)
                           setMenuOpenId(null)
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-bitchat-panel"
+                        className="w-full px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
                       >
                         Desarchivar
                       </button>
@@ -212,7 +178,7 @@ export function ChatList({
                           onArchiveChat(chat.id)
                           setMenuOpenId(null)
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-bitchat-panel"
+                        className="w-full px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
                       >
                         Archivar
                       </button>
@@ -241,7 +207,7 @@ export function ChatList({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      <header className="flex shrink-0 items-center gap-2 border-b border-bitchat-border p-4 safe-t">
+      <header className="flex shrink-0 items-center gap-2 border-b border-bitchat-border p-3 sm:p-4 safe-t safe-l safe-r">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bitchat-cyan font-bold text-bitchat-blue-dark text-lg overflow-hidden">
             {currentUserAvatar ? (
@@ -250,8 +216,10 @@ export function ChatList({
               'b'
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-semibold text-bitchat-cyan">BitChat</h1>
+          <div className="min-w-0 flex-1 flex flex-col justify-center">
+            <span className="font-semibold text-lg truncate">
+              <span className="text-bitchat-blue-mid">Bit</span><span className="text-bitchat-cyan">Chat</span>
+            </span>
             {onEditProfile ? (
               <button type="button" onClick={onEditProfile} className="truncate block text-xs text-bitchat-fg/80 hover:text-bitchat-cyan text-left w-full">
                 {currentUserName}
@@ -265,7 +233,7 @@ export function ChatList({
           <button
             type="button"
             onClick={() => setShowCreateGroup(true)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
+            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
             title="Nuevo grupo"
             aria-label="Nuevo grupo"
           >
@@ -276,7 +244,7 @@ export function ChatList({
           <button
             type="button"
             onClick={onOpenFriends}
-            className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
+            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
             title="Amigos"
             aria-label="Amigos"
           >
@@ -287,7 +255,7 @@ export function ChatList({
           <button
             type="button"
             onClick={onToggleTheme}
-            className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
+            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
             title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
             aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
           >
@@ -298,7 +266,7 @@ export function ChatList({
           <button
             type="button"
             onClick={onLogout}
-            className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-slate-200 transition-colors"
+            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg transition-colors"
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
           >
@@ -307,9 +275,9 @@ export function ChatList({
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="chat-messages-scroll overscroll-behavior-contain flex-1 min-h-0 overflow-y-auto">
         {chatsLoading ? (
-          <div className="flex items-center justify-center p-6 text-slate-500 text-sm">
+          <div className="flex items-center justify-center p-6 text-bitchat-fg-muted text-sm">
             Cargando conversaciones…
           </div>
         ) : mainChats.length === 0 && archivedChats.length === 0 ? (
@@ -326,7 +294,7 @@ export function ChatList({
                 <button
                   type="button"
                   onClick={() => setShowArchived(!showArchived)}
-                  className="flex w-full items-center gap-2 px-4 py-3 text-sm text-slate-400 hover:bg-bitchat-panel/50"
+                  className="flex w-full items-center gap-2 px-4 py-3 text-sm text-bitchat-fg-muted hover:bg-bitchat-panel/50"
                 >
                   <ChevronIcon className={`w-4 h-4 transition-transform ${showArchived ? 'rotate-90' : ''}`} />
                   Archivados ({archivedChats.length})

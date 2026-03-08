@@ -58,7 +58,7 @@ export function MessageInput({
   }
 
   return (
-    <div className="border-t border-bitchat-border bg-bitchat-panel p-2 safe-b md:p-3">
+    <div className="border-t border-bitchat-border bg-bitchat-panel p-2 safe-b safe-l safe-r md:p-3">
       {(showEmoji || showStickers) && (
         <div className="flex gap-1 p-2 mb-2 rounded-xl bg-bitchat-sidebar border border-bitchat-border">
           {showEmoji && (
@@ -109,7 +109,7 @@ export function MessageInput({
             setShowStickers((v) => !v)
             setShowEmoji(false)
           }}
-          className="rounded-full p-2.5 text-slate-400 hover:bg-bitchat-sidebar hover:text-bitchat-cyan transition-colors"
+          className="rounded-full p-2.5 text-bitchat-fg-muted hover:bg-bitchat-sidebar hover:text-bitchat-cyan transition-colors"
           aria-label="Stickers"
           title="Stickers"
         >
@@ -121,7 +121,7 @@ export function MessageInput({
             setShowEmoji((v) => !v)
             setShowStickers(false)
           }}
-          className="rounded-full p-2.5 text-slate-400 hover:bg-bitchat-sidebar hover:text-bitchat-cyan transition-colors"
+          className="rounded-full p-2.5 text-bitchat-fg-muted hover:bg-bitchat-sidebar hover:text-bitchat-cyan transition-colors"
           aria-label="Emojis"
           title="Emojis"
         >
@@ -132,7 +132,7 @@ export function MessageInput({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled || uploading}
-            className="rounded-full p-2.5 text-slate-400 hover:bg-bitchat-sidebar hover:text-bitchat-cyan transition-colors disabled:opacity-50"
+            className="rounded-full p-2.5 text-bitchat-fg-muted hover:bg-bitchat-sidebar hover:text-bitchat-cyan transition-colors disabled:opacity-50"
             aria-label="Adjuntar imagen"
             title="Adjuntar imagen"
           >
@@ -145,7 +145,7 @@ export function MessageInput({
           onChange={(e) => setText(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          className="min-w-0 flex-1 rounded-2xl border border-bitchat-border bg-bitchat-sidebar px-4 py-2.5 text-base text-slate-100 placeholder-slate-500 focus:border-bitchat-cyan focus:outline-none focus:ring-2 focus:ring-bitchat-cyan/50 md:text-sm"
+          className="min-w-0 flex-1 rounded-2xl border border-bitchat-border bg-bitchat-sidebar px-4 py-2.5 text-base text-bitchat-fg placeholder-bitchat-fg-muted focus:border-bitchat-cyan focus:outline-none focus:ring-2 focus:ring-bitchat-cyan/50 md:text-sm"
         />
         <button
           type="submit"

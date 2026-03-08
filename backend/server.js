@@ -12,6 +12,7 @@ const io = new Server(server, {
 });
 
 attachSocket(io);
+app.set('io', io);
 
 connectDb()
   .then(() => {

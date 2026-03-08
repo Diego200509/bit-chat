@@ -24,7 +24,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {message != null && (
         <div
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg bg-bitchat-sidebar border border-bitchat-border text-slate-200 text-sm shadow-lg animate-toast-in"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg bg-bitchat-sidebar border border-bitchat-border text-bitchat-fg text-sm shadow-lg animate-toast-in safe-b max-w-[calc(100vw-2rem)]"
           role="status"
           aria-live="polite"
         >

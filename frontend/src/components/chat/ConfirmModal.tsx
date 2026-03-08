@@ -18,29 +18,29 @@ export function ConfirmModal({
   onCancel,
 }: ConfirmModalProps) {
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4 safe-t safe-b safe-l safe-r" onClick={onCancel}>
       <div
         className="w-full max-w-sm rounded-xl bg-bitchat-sidebar border border-bitchat-border shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b border-bitchat-border p-4">
-          <h2 className="font-semibold text-slate-200">{title}</h2>
+          <h2 className="font-semibold text-bitchat-fg">{title}</h2>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-slate-200"
+            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg"
             aria-label="Cerrar"
           >
             <CloseIcon />
           </button>
         </header>
         <div className="p-4">
-          <p className="text-sm text-slate-400 mb-4">{message}</p>
+          <p className="text-sm text-bitchat-fg-muted mb-4">{message}</p>
           <div className="flex gap-2 justify-end">
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-lg px-4 py-2 text-slate-300 hover:bg-bitchat-panel"
+              className="rounded-lg px-4 py-2 text-bitchat-fg-muted hover:bg-bitchat-panel"
             >
               {cancelLabel}
             </button>

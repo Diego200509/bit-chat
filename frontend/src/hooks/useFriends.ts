@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
+import { socket } from '../lib/socket'
+import { SOCKET_EVENTS } from '../constants/socket'
 import * as api from '../lib/api'
 
 export function useFriends() {
@@ -7,6 +9,26 @@ export function useFriends() {
   const [received, setReceived] = useState<api.FriendItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const onProfileUpdated = (payload: { userId?: string; displayName?: string; avatar?: string | null }) => {
+      const { userId: uId, displayName: newName, avatar: newAvatar } = payload
+      if (!uId) return
+      const updateItem = (list: api.FriendItem[]) =>
+        list.map((f) =>
+          f.userId === uId
+            ? { ...f, ...(newName != null && { name: newName }), ...(newAvatar !== undefined && { avatar: newAvatar ?? undefined }) }
+            : f
+        )
+      setFriends((prev) => updateItem(prev))
+      setSent((prev) => updateItem(prev))
+      setReceived((prev) => updateItem(prev))
+    }
+    socket.on(SOCKET_EVENTS.USER_PROFILE_UPDATED, onProfileUpdated)
+    return () => {
+      socket.off(SOCKET_EVENTS.USER_PROFILE_UPDATED, onProfileUpdated)
+    }
+  }, [])
 
   const refresh = useCallback(async () => {
     setError(null)

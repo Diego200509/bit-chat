@@ -27,4 +27,5 @@ module.exports = {
   VIDEO_CALL_ACCEPTED: 'video_call_accepted',
   VIDEO_CALL_REJECTED: 'video_call_rejected',
   VIDEO_CALL_CANCELLED: 'video_call_cancelled',
+  USER_PROFILE_UPDATED: 'user_profile_updated',
 };

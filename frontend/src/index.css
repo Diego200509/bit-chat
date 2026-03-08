@@ -19,6 +19,8 @@
   --color-bitchat-border: #1e293b;
   /* Texto principal */
   --color-bitchat-fg: #f1f5f9;
+  /* Texto secundario / etiquetas */
+  --color-bitchat-fg-muted: #94a3b8;
   /* Mensajes enviados vs recibidos */
   --color-bitchat-sent: #0e7490;
   --color-bitchat-received: #1e293b;
@@ -47,11 +49,17 @@ body {
   --color-bitchat-received-fg: #0f172a;
   --color-bitchat-received-muted: #475569;
   --color-bitchat-fg: #0f172a;
+  --color-bitchat-fg-muted: #475569;
 }
 
 #root {
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-bitchat-fg-muted);
 }
 
 /* Safe area para dispositivos con notch / barra de gestos */

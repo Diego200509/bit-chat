@@ -234,7 +234,7 @@ export function ChatWindow({
 
   if (!chat) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center bg-bitchat-bg px-4 text-center text-slate-500">
+      <div className="flex flex-1 flex-col items-center justify-center bg-bitchat-bg px-4 text-center text-bitchat-fg-muted">
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-bitchat-cyan/20 text-bitchat-cyan sm:h-16 sm:w-16">
           <ChatIcon />
         </div>
@@ -255,12 +255,12 @@ export function ChatWindow({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bitchat-bg">
-      <header className="flex shrink-0 items-center gap-3 border-b border-bitchat-border bg-bitchat-panel p-3 safe-t md:p-4">
+      <header className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-bitchat-border bg-bitchat-panel p-3 safe-t safe-l safe-r md:p-4">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-300 hover:bg-bitchat-sidebar hover:text-slate-100 active:opacity-80 md:hidden touch-manipulation"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-bitchat-fg-muted hover:bg-bitchat-sidebar hover:text-bitchat-fg active:opacity-80 md:hidden touch-manipulation"
             aria-label="Volver a conversaciones"
           >
             <BackIcon />
@@ -300,7 +300,7 @@ export function ChatWindow({
                 </button>
                 {showBackgroundPicker && (
                   <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-2 shadow-lg">
-                    <p className="px-3 py-1 text-xs text-slate-500">Fondo</p>
+                    <p className="px-3 py-1 text-xs text-bitchat-fg-muted">Fondo</p>
                     {Object.entries(CHAT_BACKGROUND_PRESETS).map(([key, value]) => (
                       <button
                         key={key}
@@ -309,7 +309,7 @@ export function ChatWindow({
                           onUpdateChatBackground(chat.id, key === 'default' ? null : key)
                           setShowBackgroundPicker(false)
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-bitchat-panel"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
                       >
                         <span
                           className="h-5 w-8 rounded border border-bitchat-border shrink-0"
@@ -379,7 +379,7 @@ export function ChatWindow({
             <button
               type="button"
               onClick={() => scrollToMessage(msg.id)}
-              className="min-w-0 flex-1 text-left text-sm text-slate-300 truncate hover:text-slate-100 hover:underline"
+              className="min-w-0 flex-1 text-left text-sm text-bitchat-fg truncate hover:underline hover:underline"
               title="Ir al mensaje"
             >
               {previewShort}
@@ -388,7 +388,7 @@ export function ChatWindow({
               <button
                 type="button"
                 onClick={() => onUnpinMessage(msg.id)}
-                className="flex-shrink-0 rounded px-2 py-1 text-xs text-slate-400 hover:bg-bitchat-panel hover:text-slate-200"
+                className="flex-shrink-0 rounded px-2 py-1 text-xs text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg"
                 title="Desfijar mensaje"
               >
                 Desfijar
@@ -400,9 +400,10 @@ export function ChatWindow({
 
       <div
         ref={messagesContainerRef}
-        className="chat-messages-scroll min-h-0 flex-1 overflow-y-auto p-3 md:p-4 overscroll-behavior-contain"
+        className="chat-messages-scroll min-h-0 flex-1 overflow-y-auto overscroll-behavior-contain safe-l safe-r"
         style={chatBgStyle ? { background: chatBgStyle } : undefined}
       >
+        <div className="px-5 py-4 min-h-full md:px-10 md:py-5">
         {messagesChronological.map((message) => (
           <div
             key={message.id}
@@ -412,6 +413,7 @@ export function ChatWindow({
             <Message
               message={message}
               currentUserId={currentUserId}
+              showSenderName={!!chat && !chat.otherUserId && (chat.participants?.length ?? 0) > 0}
               onReaction={onReaction}
               onEditMessage={onEditMessage}
               onPinMessage={onPinMessage}
@@ -421,11 +423,12 @@ export function ChatWindow({
           </div>
         ))}
         <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {chat.otherUserId && blockedUserIds.includes(chat.otherUserId) ? (
         <div className="border-t border-bitchat-border bg-bitchat-panel p-4 safe-b">
-          <p className="text-center text-sm text-slate-400">
+          <p className="text-center text-sm text-bitchat-fg-muted">
             Has bloqueado a este usuario. Desbloquea para enviar mensajes.
           </p>
         </div>
@@ -474,8 +477,8 @@ export function ChatWindow({
                   <VideoCallIcon className="h-3.5 w-3.5" />
                 </span>
               </div>
-              <p className="text-slate-400 text-sm font-medium">Llamando a</p>
-              <p className="text-slate-100 text-xl font-semibold mt-1">{chat.name}</p>
+              <p className="text-bitchat-fg-muted text-sm font-medium">Llamando a</p>
+              <p className="text-bitchat-fg text-xl font-semibold mt-1">{chat.name}</p>
             </div>
             <div className="p-4 pt-0">
               <button

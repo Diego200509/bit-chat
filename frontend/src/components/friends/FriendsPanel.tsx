@@ -57,12 +57,12 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
 
   return (
     <div className="flex h-full flex-col bg-bitchat-sidebar">
-      <header className="flex shrink-0 items-center justify-between border-b border-bitchat-border p-3 safe-t">
+      <header className="flex shrink-0 items-center justify-between border-b border-bitchat-border p-3 safe-t safe-l safe-r">
         <h2 className="font-semibold text-bitchat-cyan">Amigos</h2>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-slate-200"
+          className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg"
           aria-label="Cerrar"
         >
           <CloseIcon />
@@ -71,7 +71,7 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
 
       <div className="flex shrink-0 items-center gap-2 border-b border-bitchat-border p-3">
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-bitchat-border bg-bitchat-panel pl-3 pr-3 focus-within:border-bitchat-cyan focus-within:ring-1 focus-within:ring-bitchat-cyan/50">
-          <span className="shrink-0 text-slate-500" aria-hidden>
+          <span className="shrink-0 text-bitchat-fg-muted" aria-hidden>
             <SearchIcon />
           </span>
           <input
@@ -79,7 +79,7 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por nombre o email..."
-            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-bitchat-fg placeholder-bitchat-fg-muted focus:outline-none"
           />
           {searching && (
             <span className="shrink-0 text-bitchat-cyan" aria-hidden>
@@ -95,21 +95,21 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="chat-messages-scroll overscroll-behavior-contain flex-1 min-h-0 overflow-y-auto p-3">
         {searchResults.length > 0 && (
           <section className="mb-4">
-            <h3 className="mb-2 text-xs font-medium uppercase text-slate-500">Resultados</h3>
+            <h3 className="mb-2 text-xs font-medium uppercase text-bitchat-fg-muted">Resultados</h3>
             <ul className="space-y-1">
               {searchResults.map((u) => (
                 <li
                   key={u.id}
                   className="flex items-center justify-between gap-2 rounded-lg bg-bitchat-panel p-2"
                 >
-                  <span className="min-w-0 truncate text-sm text-slate-200">
-                    {u.name} <span className="text-slate-500">({u.email})</span>
+                  <span className="min-w-0 truncate text-sm text-bitchat-fg">
+                    {u.name} <span className="text-bitchat-fg-muted">({u.email})</span>
                   </span>
                   {isAlreadyFriendOrSent(u.id) ? (
-                    <span className="text-xs text-slate-500">Amigo / Enviada</span>
+                    <span className="text-xs text-bitchat-fg-muted">Amigo / Enviada</span>
                   ) : (
                     <button
                       type="button"
@@ -128,7 +128,7 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
 
         {received.length > 0 && (
           <section className="mb-4">
-            <h3 className="mb-2 text-xs font-medium uppercase text-slate-500">Solicitudes recibidas</h3>
+            <h3 className="mb-2 text-xs font-medium uppercase text-bitchat-fg-muted">Solicitudes recibidas</h3>
             <ul className="space-y-1">
               {received.map((r) => (
                 <RequestRow
@@ -143,11 +143,11 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
         )}
 
         <section>
-          <h3 className="mb-2 text-xs font-medium uppercase text-slate-500">Amigos</h3>
+          <h3 className="mb-2 text-xs font-medium uppercase text-bitchat-fg-muted">Amigos</h3>
           {loading ? (
-            <p className="text-sm text-slate-500">Cargando…</p>
+            <p className="text-sm text-bitchat-fg-muted">Cargando…</p>
           ) : friends.length === 0 ? (
-            <p className="text-sm text-slate-500">Aún no tienes amigos. Busca y agrega a alguien.</p>
+            <p className="text-sm text-bitchat-fg-muted">Aún no tienes amigos. Busca y agrega a alguien.</p>
           ) : (
             <ul className="space-y-1">
               {friends.map((f) => (
@@ -155,7 +155,7 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
                   key={f.id}
                   className="flex items-center justify-between gap-2 rounded-lg bg-bitchat-panel p-2"
                 >
-                  <span className="min-w-0 truncate text-sm text-slate-200">{f.name}</span>
+                  <span className="min-w-0 truncate text-sm text-bitchat-fg">{f.name}</span>
                   <button
                     type="button"
                     onClick={() => onOpenChat(f.userId)}
@@ -184,7 +184,7 @@ function RequestRow({
 }) {
   return (
     <li className="flex items-center justify-between gap-2 rounded-lg bg-bitchat-panel p-2">
-      <span className="min-w-0 truncate text-sm text-slate-200">{item.name}</span>
+      <span className="min-w-0 truncate text-sm text-bitchat-fg">{item.name}</span>
       <div className="flex shrink-0 gap-1">
         <button
           type="button"
@@ -196,7 +196,7 @@ function RequestRow({
         <button
           type="button"
           onClick={onReject}
-          className="rounded bg-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-500"
+          className="rounded bg-slate-600 px-2 py-1 text-xs text-white hover:bg-slate-500"
         >
           Rechazar
         </button>

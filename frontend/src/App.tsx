@@ -6,7 +6,7 @@ import { useBlocked } from './hooks/useBlocked'
 import { useOnlineUsers } from './hooks/useOnlineUsers'
 import { ToastProvider } from './context/ToastContext'
 import { AuthScreen } from './components/auth'
-import { ChatList, ChatWindow, EditProfileModal } from './components/chat'
+import { ChatList, ChatWindow, EditProfileModal, ConfirmModal } from './components/chat'
 import { FriendsPanel } from './components/friends'
 import { socket } from './lib/socket'
 import { SOCKET_EVENTS } from './constants/socket'
@@ -68,6 +68,7 @@ function ChatLayout() {
   })
   const [showFriendsPanel, setShowFriendsPanel] = useState(false)
   const [showEditProfile, setShowEditProfile] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null)
 
   const openJitsi = useCallback((roomName: string) => {
@@ -128,7 +129,7 @@ function ChatLayout() {
   )
 
   return (
-    <div className="h-screen flex overflow-hidden bg-bitchat-bg text-slate-100">
+    <div className="h-screen flex overflow-hidden bg-bitchat-bg text-bitchat-fg md:gap-3 md:p-2">
       <aside
         className={`flex flex-col w-full md:w-[380px] md:flex-shrink-0 border-r border-bitchat-border bg-bitchat-sidebar ${
           mobileView === 'chat' ? 'hidden md:flex' : 'flex'
@@ -143,7 +144,7 @@ function ChatLayout() {
             onSelectChat={handleSelectChat}
             currentUserName={displayName}
             currentUserAvatar={user?.avatar}
-            onLogout={logout}
+            onLogout={() => setShowLogoutConfirm(true)}
             onOpenFriends={handleOpenFriends}
             onEditProfile={() => setShowEditProfile(true)}
             chatsLoading={chatsLoading}
@@ -186,6 +187,19 @@ function ChatLayout() {
           currentUserAvatar={user?.avatar}
         />
       </main>
+      {showLogoutConfirm && (
+        <ConfirmModal
+          title="Cerrar sesión"
+          message="¿Estás seguro de que quieres cerrar sesión?"
+          confirmLabel="Cerrar sesión"
+          danger
+          onConfirm={() => {
+            setShowLogoutConfirm(false)
+            logout()
+          }}
+          onCancel={() => setShowLogoutConfirm(false)}
+        />
+      )}
       {showEditProfile && user && (
         <EditProfileModal
           currentName={user.name}
@@ -197,14 +211,14 @@ function ChatLayout() {
         />
       )}
       {!connected && (
-        <div className="fixed bottom-4 right-4 px-3 py-2 rounded-lg bg-amber-600/90 text-white text-sm z-20 safe-b">
+        <div className="fixed bottom-4 right-4 px-3 py-2 rounded-lg bg-amber-600/90 text-white text-sm z-20 safe-b safe-r max-w-[calc(100vw-2rem)]">
           Reconectando…
         </div>
       )}
 
       {incomingCall && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-bitchat-sidebar border border-bitchat-border shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 safe-t safe-b safe-l safe-r">
+          <div className="w-full max-w-sm max-h-[90dvh] flex flex-col rounded-2xl bg-bitchat-sidebar border border-bitchat-border shadow-2xl overflow-hidden">
             <div className="p-6 pb-4 text-center">
               <div className="relative inline-block mb-4">
                 <div className="w-24 h-24 rounded-full overflow-hidden bg-bitchat-panel border-4 border-bitchat-cyan/50 flex items-center justify-center ring-4 ring-bitchat-cyan/20">
@@ -222,8 +236,8 @@ function ChatLayout() {
                   <VideoCallRingingIcon className="h-3.5 w-3.5" />
                 </span>
               </div>
-              <p className="text-slate-400 text-sm font-medium">Videollamada entrante</p>
-              <p className="text-slate-100 text-xl font-semibold mt-1">{incomingCall.callerName}</p>
+              <p className="text-bitchat-fg-muted text-sm font-medium">Videollamada entrante</p>
+              <p className="text-bitchat-fg text-xl font-semibold mt-1">{incomingCall.callerName}</p>
               <p className="text-bitchat-cyan text-sm mt-0.5">te está llamando</p>
             </div>
             <div className="flex gap-3 p-4 pt-0">

@@ -23,6 +23,16 @@ router.patch('/me', async (req, res) => {
     const user = await User.findByIdAndUpdate(req.userId, { $set: update }, { returnDocument: 'after' })
       .select('name email nickname avatar visibility')
       .lean();
+    const displayName = (user.nickname && user.nickname.trim()) ? user.nickname.trim() : user.name;
+    const io = req.app.get('io');
+    if (io) {
+      io.emit(require('../config/socket.events').USER_PROFILE_UPDATED, {
+        userId: req.userId,
+        displayName,
+        nickname: user.nickname,
+        avatar: user.avatar,
+      });
+    }
     return res.json({
       id: user._id.toString(),
       name: user.name,

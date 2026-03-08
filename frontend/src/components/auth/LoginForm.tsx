@@ -40,26 +40,26 @@ export function LoginForm({
         </div>
       )}
       <label className="flex flex-col gap-1">
-        <span className="text-sm text-slate-400">Email</span>
+        <span className="text-sm text-bitchat-fg-muted">Email</span>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
           autoComplete="email"
-          className="rounded-xl bg-bitchat-panel border border-bitchat-border px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bitchat-cyan/50 focus:border-bitchat-cyan"
+          className="rounded-xl bg-bitchat-panel border border-bitchat-border px-4 py-2.5 text-bitchat-fg placeholder-bitchat-fg-muted focus:outline-none focus:ring-2 focus:ring-bitchat-cyan/50 focus:border-bitchat-cyan"
           placeholder="tu@email.com"
         />
       </label>
       <label className="flex flex-col gap-1">
-        <span className="text-sm text-slate-400">Contraseña</span>
+        <span className="text-sm text-bitchat-fg-muted">Contraseña</span>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           autoComplete="current-password"
-          className="rounded-xl bg-bitchat-panel border border-bitchat-border px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bitchat-cyan/50 focus:border-bitchat-cyan"
+          className="rounded-xl bg-bitchat-panel border border-bitchat-border px-4 py-2.5 text-bitchat-fg placeholder-bitchat-fg-muted focus:outline-none focus:ring-2 focus:ring-bitchat-cyan/50 focus:border-bitchat-cyan"
           placeholder="••••••••"
         />
       </label>
@@ -70,7 +70,7 @@ export function LoginForm({
       >
         {loading ? 'Entrando…' : 'Entrar'}
       </button>
-      <p className="text-sm text-slate-500 text-center mt-2">
+      <p className="text-sm text-bitchat-fg-muted text-center mt-2">
         ¿No tienes cuenta?{' '}
         <button
           type="button"

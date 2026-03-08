@@ -1,5 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import * as api from '../../lib/api'
+import { env } from '../../config/env'
 import { useFriends } from '../../hooks/useFriends'
+
+function fullUrl(path: string | null | undefined): string {
+  if (!path) return ''
+  if (path.startsWith('http') || path.startsWith('data:')) return path
+  const base = env.apiUrl.replace(/\/$/, '')
+  return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
+}
 
 interface CreateGroupModalProps {
   onClose: () => void
@@ -9,10 +18,25 @@ interface CreateGroupModalProps {
 export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
   const { friends } = useFriends()
   const [name, setName] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const url = await api.uploadImage(file)
+      setImageUrl(url)
+    } catch {} finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
 
   const toggle = (userId: string) => {
     setSelectedIds((prev) => {
@@ -33,7 +57,7 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
     setError('')
     setLoading(true)
     try {
-      await onCreate(n, Array.from(selectedIds), imageUrl.trim() || undefined)
+      await onCreate(n, Array.from(selectedIds), imageUrl ?? undefined)
       onClose()
     } catch {
       setError('No se pudo crear el grupo')
@@ -43,44 +67,59 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4 safe-t safe-b safe-l safe-r" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl bg-bitchat-sidebar border border-bitchat-border shadow-xl"
+        className="w-full max-w-md max-h-[90dvh] flex flex-col rounded-xl bg-bitchat-sidebar border border-bitchat-border shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-bitchat-border p-4">
+        <header className="flex shrink-0 items-center justify-between border-b border-bitchat-border p-4">
           <h2 className="font-semibold text-bitchat-cyan">Nuevo grupo</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-slate-200" aria-label="Cerrar">
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg" aria-label="Cerrar">
             <CloseIcon />
           </button>
         </header>
-        <form onSubmit={handleSubmit} className="flex flex-col p-4 gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col p-4 gap-4 min-h-0 overflow-y-auto">
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Nombre del grupo</label>
+            <label className="block text-sm text-bitchat-fg-muted mb-1">Nombre del grupo</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-bitchat-border bg-bitchat-panel px-3 py-2 text-slate-100 placeholder-slate-500 focus:border-bitchat-cyan focus:outline-none focus:ring-1 focus:ring-bitchat-cyan/50"
+              className="w-full rounded-lg border border-bitchat-border bg-bitchat-panel px-3 py-2 text-bitchat-fg placeholder-bitchat-fg-muted focus:border-bitchat-cyan focus:outline-none focus:ring-1 focus:ring-bitchat-cyan/50"
               placeholder="Ej: Familia"
               autoFocus
             />
           </div>
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">Imagen del grupo (URL, opcional)</label>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="w-16 h-16 rounded-full overflow-hidden bg-bitchat-panel border-2 border-bitchat-border flex items-center justify-center shrink-0 hover:border-bitchat-cyan transition-colors"
+            >
+              {imageUrl ? (
+                <img src={fullUrl(imageUrl)} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl text-slate-500">👥</span>
+              )}
+            </button>
             <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full rounded-lg border border-bitchat-border bg-bitchat-panel px-3 py-2 text-slate-100 placeholder-slate-500 focus:border-bitchat-cyan focus:outline-none focus:ring-1 focus:ring-bitchat-cyan/50"
-              placeholder="https://ejemplo.com/imagen.jpg"
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              className="hidden"
+              onChange={handleImageChange}
             />
+            <div>
+              <p className="text-sm font-medium text-bitchat-fg">Imagen del grupo</p>
+              <p className="text-xs text-bitchat-fg-muted">{uploading ? 'Subiendo…' : 'Clic para cambiar'}</p>
+            </div>
           </div>
           <div>
-            <label className="block text-sm text-slate-400 mb-2">Añadir amigos</label>
-            <div className="max-h-48 overflow-y-auto rounded-lg border border-bitchat-border bg-bitchat-panel divide-y divide-bitchat-border">
+            <label className="block text-sm text-bitchat-fg-muted mb-2">Añadir amigos</label>
+            <div className="chat-messages-scroll max-h-48 overflow-y-auto rounded-lg border border-bitchat-border bg-bitchat-panel divide-y divide-bitchat-border">
               {friends.length === 0 ? (
-                <p className="p-3 text-slate-500 text-sm">No tienes amigos. Añade amigos primero.</p>
+                <p className="p-3 text-bitchat-fg-muted text-sm">No tienes amigos. Añade amigos primero.</p>
               ) : (
                 friends.map((f) => (
                   <label key={f.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-bitchat-panel/80">
@@ -90,7 +129,7 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
                       onChange={() => toggle(f.userId)}
                       className="rounded border-bitchat-border text-bitchat-cyan focus:ring-bitchat-cyan"
                     />
-                    <span className="text-slate-100 truncate">{f.name}</span>
+                    <span className="text-bitchat-fg truncate">{f.name}</span>
                   </label>
                 ))
               )}
@@ -98,7 +137,7 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-slate-300 hover:bg-bitchat-panel">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-bitchat-fg-muted hover:bg-bitchat-panel">
               Cancelar
             </button>
             <button

@@ -56,6 +56,8 @@ function StickerContent({ url, fullUrl }: { url: string | null | undefined; full
 interface MessageProps {
   message: MessageType
   currentUserId?: string
+  /** Mostrar nombre del remitente encima del mensaje (solo en grupos) */
+  showSenderName?: boolean
   onReaction?: (messageId: string, emoji: string) => void
   onEditMessage?: (messageId: string, text: string) => void
   onPinMessage?: (messageId: string) => void
@@ -70,7 +72,21 @@ function fullUrl(path: string): string {
   return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
 }
 
-export function Message({ message, currentUserId, onReaction, onEditMessage, onPinMessage, onUnpinMessage, onDeleteMessage }: MessageProps) {
+function SenderAvatar({ avatar, name }: { avatar?: string | null; name?: string }) {
+  const url = avatar?.trim() ? fullUrl(avatar) : ''
+  const initial = name?.trim() ? name.trim().charAt(0).toUpperCase() : '?'
+  return (
+    <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden bg-bitchat-panel border border-bitchat-border flex items-center justify-center text-bitchat-fg-muted text-sm font-medium">
+      {url ? (
+        <img src={url} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <span aria-hidden>{initial}</span>
+      )}
+    </div>
+  )
+}
+
+export function Message({ message, currentUserId, showSenderName = false, onReaction, onEditMessage, onPinMessage, onUnpinMessage, onDeleteMessage }: MessageProps) {
   const isOwn = message.isOwn ?? false
   const [showReactions, setShowReactions] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
@@ -165,18 +181,27 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
       ? 'rounded-br-md bg-bitchat-cyan text-bitchat-blue-dark'
       : 'rounded-bl-md bg-bitchat-received text-bitchat-received-fg'
     const mutedClass = alignRight ? 'text-bitchat-blue-dark/70' : 'text-bitchat-received-muted'
+    const showNameDeleted = showSenderName && !deletedByMe && (message.senderName?.trim() ?? '')
     return (
-      <div className={`flex w-full ${alignRight ? 'justify-end' : 'justify-start'} mb-2`}>
-        <div className={`rounded-2xl px-4 py-2.5 max-w-[85%] sm:max-w-[75%] ${bubbleClass}`}>
-          <div className="flex items-start gap-2">
-            <span className={`flex-shrink-0 ${mutedClass}`} aria-hidden>
-              <DeletedMessageIcon />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm italic">{text}</p>
-              <p className={`text-[10px] ${mutedClass} mt-0.5 text-right`}>
-                {formatTime(message.timestamp)}
-              </p>
+      <div className={`flex w-full ${alignRight ? 'justify-end' : 'justify-start'} mb-2 ${!alignRight && showNameDeleted ? 'gap-2 items-end' : ''}`}>
+        {showNameDeleted && <SenderAvatar avatar={message.senderAvatar} name={message.senderName} />}
+        <div className={`relative min-w-0 max-w-[85%] sm:max-w-[75%]`}>
+          {showNameDeleted && (
+            <p className="text-[11px] text-bitchat-fg-muted mb-0.5 px-1 font-medium" aria-label={`De ${message.senderName}`}>
+              {message.senderName}
+            </p>
+          )}
+          <div className={`rounded-2xl px-4 py-2.5 max-w-full ${bubbleClass}`}>
+            <div className="flex items-start gap-2">
+              <span className={`flex-shrink-0 ${mutedClass}`} aria-hidden>
+                <DeletedMessageIcon />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm italic">{text}</p>
+                <p className={`text-[10px] ${mutedClass} mt-0.5 text-right`}>
+                  {formatTime(message.timestamp)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -184,9 +209,18 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
     )
   }
 
+  const showName = showSenderName && !isOwn && (message.senderName?.trim() ?? '')
+  const showGroupAvatar = showSenderName && !isOwn
+
   return (
-    <div className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} mb-2 group overflow-visible`}>
-      <div className="relative max-w-[85%] sm:max-w-[75%] overflow-visible">
+    <div className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} mb-2 group overflow-visible ${showGroupAvatar ? 'gap-2 items-end' : ''}`}>
+      {showGroupAvatar && <SenderAvatar avatar={message.senderAvatar} name={message.senderName} />}
+      <div className="relative min-w-0 max-w-[85%] sm:max-w-[75%] overflow-visible">
+        {showName && (
+          <p className="text-[11px] text-bitchat-fg-muted mb-0.5 px-1 font-medium" aria-label={`De ${message.senderName}`}>
+            {message.senderName}
+          </p>
+        )}
         <div
           className={`rounded-2xl overflow-visible ${
             type === 'sticker' ? 'p-2' : 'px-4 py-2'
@@ -196,11 +230,6 @@ export function Message({ message, currentUserId, onReaction, onEditMessage, onP
               : 'rounded-bl-md bg-bitchat-received text-bitchat-received-fg'
           }`}
         >
-          {!isOwn && (
-            <p className="text-xs text-bitchat-cyan-bright mb-0.5 font-medium [.bg-bitchat-received_&]:text-bitchat-received-fg">
-              {message.senderName}
-            </p>
-          )}
           {type === 'image' && message.imageUrl && (
             <a href={fullUrl(message.imageUrl)} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden max-w-[280px]">
               <img src={fullUrl(message.imageUrl)} alt="" className="w-full h-auto object-cover" />

@@ -15,6 +15,9 @@ lerna-debug.log*
 .env.local
 .env.*.local
 
+# Archivos subidos por usuarios (imágenes, etc.) — no versionar
+uploads
+
 # Build / output
 dist
 build

@@ -100,6 +100,55 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
   }, [])
 
   useEffect(() => {
+    const onProfileUpdated = (payload: { userId?: string; displayName?: string; avatar?: string | null }) => {
+      const { userId: uId, displayName: newName, avatar: newAvatar } = payload
+      if (!uId) return
+      setChats((prev) =>
+        prev.map((c) => {
+          let next = c
+          if (c.otherUserId === uId) {
+            next = {
+              ...next,
+              ...(newName != null && { name: newName }),
+              ...(newAvatar !== undefined && { avatar: newAvatar ?? undefined, image: newAvatar ?? null }),
+            }
+          }
+          if (c.participants?.some((p) => p.id === uId)) {
+            next = {
+              ...next,
+              participants: next.participants!.map((p) =>
+                p.id === uId ? { ...p, name: newName ?? p.name } : p
+              ),
+            }
+          }
+          const needsMessageUpdate =
+            (newName != null || newAvatar !== undefined) &&
+            next.messages.some((m) => m.senderId === uId)
+          if (needsMessageUpdate) {
+            next = {
+              ...next,
+              messages: next.messages.map((m) =>
+                m.senderId !== uId
+                  ? m
+                  : {
+                      ...m,
+                      ...(newName != null && { senderName: newName }),
+                      ...(newAvatar !== undefined && { senderAvatar: newAvatar ?? null }),
+                    }
+              ),
+            }
+          }
+          return next
+        })
+      )
+    }
+    socket.on(SOCKET_EVENTS.USER_PROFILE_UPDATED, onProfileUpdated)
+    return () => {
+      socket.off(SOCKET_EVENTS.USER_PROFILE_UPDATED, onProfileUpdated)
+    }
+  }, [])
+
+  useEffect(() => {
     if (chats.length === 0) return
     const chatIds = chats.map((c) => c.id)
     socket.emit(SOCKET_EVENTS.JOIN_CHAT_ROOMS, chatIds)

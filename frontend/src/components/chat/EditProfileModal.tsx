@@ -62,19 +62,19 @@ export function EditProfileModal({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4 safe-t safe-b safe-l safe-r" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-xl bg-bitchat-sidebar border border-bitchat-border shadow-xl"
+        className="w-full max-w-sm max-h-[90dvh] flex flex-col rounded-xl bg-bitchat-sidebar border border-bitchat-border shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-bitchat-border p-4">
+        <header className="flex shrink-0 items-center justify-between border-b border-bitchat-border p-4">
           <h2 className="font-semibold text-bitchat-cyan">Editar perfil</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-bitchat-panel hover:text-slate-200" aria-label="Cerrar">
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg" aria-label="Cerrar">
             <CloseIcon />
           </button>
         </header>
-        <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-4">
-          <p className="text-sm text-slate-400">Nombre de cuenta: {currentName}</p>
+        <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-4 min-h-0 overflow-y-auto">
+          <p className="text-sm text-bitchat-fg-muted">Nombre de cuenta: {currentName}</p>
 
           <div className="flex items-center gap-4">
             <button
@@ -97,24 +97,24 @@ export function EditProfileModal({
               onChange={handleAvatarChange}
             />
             <div>
-              <p className="text-sm font-medium text-slate-300">Foto de perfil</p>
-              <p className="text-xs text-slate-500">{uploading ? 'Subiendo…' : 'Clic para cambiar'}</p>
+              <p className="text-sm font-medium text-bitchat-fg">Foto de perfil</p>
+              <p className="text-xs text-bitchat-fg-muted">{uploading ? 'Subiendo…' : 'Clic para cambiar'}</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Apodo (cómo te ven en los chats)</label>
+            <label className="block text-sm text-bitchat-fg-muted mb-1">Apodo (cómo te ven en los chats)</label>
             <input
               type="text"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className="w-full rounded-lg border border-bitchat-border bg-bitchat-panel px-3 py-2 text-slate-100 placeholder-slate-500 focus:border-bitchat-cyan focus:outline-none focus:ring-1 focus:ring-bitchat-cyan/50"
+              className="w-full rounded-lg border border-bitchat-border bg-bitchat-panel px-3 py-2 text-bitchat-fg placeholder-bitchat-fg-muted focus:border-bitchat-cyan focus:outline-none focus:ring-1 focus:ring-bitchat-cyan/50"
               placeholder={currentName}
             />
           </div>
 
           <div>
-            <label className="block text-sm text-slate-400 mb-2">Modo invisible</label>
+            <label className="block text-sm text-bitchat-fg-muted mb-2">Modo invisible</label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -122,12 +122,12 @@ export function EditProfileModal({
                 onChange={(e) => setVisibility(e.target.checked ? 'invisible' : 'visible')}
                 className="rounded border-bitchat-border bg-bitchat-panel text-bitchat-cyan focus:ring-bitchat-cyan"
               />
-              <span className="text-sm text-slate-300">No mostrar que estoy en línea</span>
+              <span className="text-sm text-bitchat-fg">No mostrar que estoy en línea</span>
             </label>
           </div>
 
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-slate-300 hover:bg-bitchat-panel">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-bitchat-fg-muted hover:bg-bitchat-panel">
               Cancelar
             </button>
             <button
