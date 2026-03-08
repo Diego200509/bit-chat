@@ -7,7 +7,32 @@ import { ConfirmModal } from './ConfirmModal'
 const QUICK_EMOJIS = ['👍', '❤️', '😄', '😮', '😢', '👎']
 const LONG_TEXT_WORDS = 130
 
-function LongTextContent({ text, isOwn }: { text: string; isOwn: boolean }) {
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function TextWithHighlight({ text, highlight }: { text: string; highlight?: string }) {
+  if (!highlight || highlight.trim() === '') {
+    return <>{text}</>
+  }
+  const re = new RegExp(`(${escapeRegex(highlight.trim())})`, 'gi')
+  const parts = text.split(re)
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <mark key={i} className="bg-bitchat-cyan/35 text-bitchat-fg rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  )
+}
+
+function LongTextContent({ text, isOwn, highlight }: { text: string; isOwn: boolean; highlight?: string }) {
   const [expanded, setExpanded] = useState(false)
   const words = text.trim() ? text.trim().split(/\s+/) : []
   const isLong = words.length > LONG_TEXT_WORDS
@@ -19,7 +44,9 @@ function LongTextContent({ text, isOwn }: { text: string; isOwn: boolean }) {
     : 'text-bitchat-cyan hover:text-bitchat-cyan-bright hover:underline [.bg-bitchat-received_&]:text-bitchat-received-fg [.bg-bitchat-received_&]:hover:opacity-90'
   return (
     <span className="block">
-      <p className="text-sm break-words whitespace-pre-wrap">{displayText}</p>
+      <p className="text-sm break-words whitespace-pre-wrap">
+        <TextWithHighlight text={displayText} highlight={highlight} />
+      </p>
       {isLong && (
         <button
           type="button"
@@ -58,6 +85,8 @@ interface MessageProps {
   currentUserId?: string
   /** Mostrar nombre del remitente encima del mensaje (solo en grupos) */
   showSenderName?: boolean
+  /** Texto a resaltar en el contenido (búsqueda en chat) */
+  searchHighlight?: string
   onReaction?: (messageId: string, emoji: string) => void
   onEditMessage?: (messageId: string, text: string) => void
   onPinMessage?: (messageId: string) => void
@@ -86,7 +115,7 @@ function SenderAvatar({ avatar, name }: { avatar?: string | null; name?: string 
   )
 }
 
-export function Message({ message, currentUserId, showSenderName = false, onReaction, onEditMessage, onPinMessage, onUnpinMessage, onDeleteMessage }: MessageProps) {
+export function Message({ message, currentUserId, showSenderName = false, searchHighlight, onReaction, onEditMessage, onPinMessage, onUnpinMessage, onDeleteMessage }: MessageProps) {
   const isOwn = message.isOwn ?? false
   const [showReactions, setShowReactions] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
@@ -253,7 +282,7 @@ export function Message({ message, currentUserId, showSenderName = false, onReac
             <StickerContent url={message.stickerUrl} fullUrl={fullUrl} />
           )}
           {(type === 'text' || type === 'emoji' || (type === 'image' && message.text)) && !editing && (
-            <LongTextContent text={message.text || ''} isOwn={isOwn} />
+            <LongTextContent text={message.text || ''} isOwn={isOwn} highlight={searchHighlight} />
           )}
           {editing && (
             <div className="space-y-2 mt-1">

@@ -96,8 +96,12 @@ export function ChatList({
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [chatFilter, setChatFilter] = useState<'all' | 'unread'>('all')
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
+  const [headerMenuStyle, setHeaderMenuStyle] = useState<{ top: number; left: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuDropdownRef = useRef<HTMLDivElement>(null)
+  const headerMenuRef = useRef<HTMLButtonElement>(null)
+  const headerMenuDropdownRef = useRef<HTMLDivElement>(null)
 
   const mainChats = chats.filter((c) => !c.isArchived)
   const archivedChats = chats.filter((c) => c.isArchived)
@@ -114,6 +118,43 @@ export function ChatList({
           (c.lastMessage?.toLowerCase().includes(searchLower) ?? false)
       )
     : filteredByFilter
+
+  useEffect(() => {
+    if (!headerMenuOpen || !headerMenuRef.current) {
+      setHeaderMenuStyle(null)
+      return
+    }
+    const rect = headerMenuRef.current.getBoundingClientRect()
+    const padding = 8
+    const menuWidth = 180
+    const viewportW = window.innerWidth
+    const left = Math.max(padding, Math.min(viewportW - menuWidth - padding, rect.right - menuWidth))
+    setHeaderMenuStyle({ top: rect.bottom + padding, left })
+  }, [headerMenuOpen])
+
+  useLayoutEffect(() => {
+    if (!headerMenuOpen || !headerMenuStyle || !headerMenuRef.current || !headerMenuDropdownRef.current) return
+    const rect = headerMenuRef.current.getBoundingClientRect()
+    const padding = 8
+    const viewportH = window.innerHeight
+    const menuHeight = headerMenuDropdownRef.current.offsetHeight
+    const isCurrentlyBelow = headerMenuStyle.top >= rect.bottom
+    if (isCurrentlyBelow && headerMenuStyle.top + menuHeight > viewportH - padding) {
+      const topUp = rect.top - menuHeight - padding
+      setHeaderMenuStyle((prev) => (prev ? { ...prev, top: Math.max(padding, topUp) } : prev))
+    }
+  }, [headerMenuOpen, headerMenuStyle])
+
+  useEffect(() => {
+    if (!headerMenuOpen) return
+    const close = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (headerMenuRef.current?.contains(target) || headerMenuDropdownRef.current?.contains(target)) return
+      setHeaderMenuOpen(false)
+    }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [headerMenuOpen])
 
   useEffect(() => {
     if (!menuOpenId || !menuRef.current) {
@@ -233,7 +274,7 @@ export function ChatList({
               {menuOpen && menuStyle && createPortal(
                 <div
                   ref={menuDropdownRef}
-                  className="fixed z-[100] w-44 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-1 shadow-xl"
+                  className="fixed z-[100] w-48 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-1 shadow-xl"
                   style={{ top: menuStyle.top, left: menuStyle.left }}
                 >
                   {chat.isPinned ? (
@@ -244,8 +285,9 @@ export function ChatList({
                           onUnpinChat(chat.id)
                           setMenuOpenId(null)
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel transition-colors"
                       >
+                        <PinIcon className="h-5 w-5 shrink-0" />
                         Desfijar
                       </button>
                     )
@@ -257,8 +299,9 @@ export function ChatList({
                           onPinChat(chat.id)
                           setMenuOpenId(null)
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel transition-colors"
                       >
+                        <PinIcon className="h-5 w-5 shrink-0" />
                         Fijar
                       </button>
                     )
@@ -271,8 +314,9 @@ export function ChatList({
                           onUnarchiveChat(chat.id)
                           setMenuOpenId(null)
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel transition-colors"
                       >
+                        <ArchiveOutIcon className="h-5 w-5 shrink-0" />
                         Desarchivar
                       </button>
                     )
@@ -284,8 +328,9 @@ export function ChatList({
                           onArchiveChat(chat.id)
                           setMenuOpenId(null)
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel transition-colors"
                       >
+                        <ArchiveIcon className="h-5 w-5 shrink-0" />
                         Archivar
                       </button>
                     )
@@ -297,8 +342,9 @@ export function ChatList({
                         setMenuOpenId(null)
                         setClearConfirmChatId(chat.id)
                       }}
-                      className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-bitchat-panel"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
                     >
+                      <TrashRowIcon className="h-5 w-5 shrink-0" />
                       Borrar conversación
                     </button>
                   )}
@@ -336,28 +382,6 @@ export function ChatList({
             )}
           </div>
         </div>
-        {onCreateGroup && (
-          <button
-            type="button"
-            onClick={() => setShowCreateGroup(true)}
-            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
-            title="Nuevo grupo"
-            aria-label="Nuevo grupo"
-          >
-            <GroupIcon />
-          </button>
-        )}
-        {onOpenFriends && (
-          <button
-            type="button"
-            onClick={onOpenFriends}
-            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
-            title="Amigos"
-            aria-label="Amigos"
-          >
-            <PeopleIcon />
-          </button>
-        )}
         {onToggleTheme && (
           <button
             type="button"
@@ -369,17 +393,66 @@ export function ChatList({
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
         )}
-        {onLogout && (
+        <div className="relative flex-shrink-0">
           <button
+            ref={headerMenuRef}
             type="button"
-            onClick={onLogout}
+            onClick={() => setHeaderMenuOpen((v) => !v)}
             className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg transition-colors"
-            title="Cerrar sesión"
-            aria-label="Cerrar sesión"
+            title="Opciones"
+            aria-label="Opciones"
           >
-            <LogoutIcon />
+            <DotsIcon />
           </button>
-        )}
+          {headerMenuOpen && headerMenuStyle && createPortal(
+            <div
+              ref={headerMenuDropdownRef}
+              className="fixed z-[100] w-48 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-1 shadow-xl"
+              style={{ top: headerMenuStyle.top, left: headerMenuStyle.left }}
+            >
+              {onCreateGroup && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateGroup(true)
+                    setHeaderMenuOpen(false)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                >
+                  <GroupIcon />
+                  Nuevo grupo
+                </button>
+              )}
+              {onOpenFriends && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenFriends()
+                    setHeaderMenuOpen(false)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                >
+                  <PeopleIcon />
+                  Amigos
+                </button>
+              )}
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onLogout()
+                    setHeaderMenuOpen(false)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
+                >
+                  <LogoutIcon />
+                  Cerrar sesión
+                </button>
+              )}
+            </div>,
+            document.body
+          )}
+        </div>
       </header>
 
       <div className="flex shrink-0 flex-col gap-2 border-b border-bitchat-border px-5 py-3 safe-l safe-r sm:px-6 md:px-6">
@@ -509,6 +582,33 @@ function DotsIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
       <path fillRule="evenodd" d="M10.5 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function ArchiveIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M3.375 3C2.339 3 1.5 3.84 1.5 4.875v.75c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875v-.75C20.5 3.839 19.66 3 18.625 3H3.375Z" />
+      <path fillRule="evenodd" d="m3.087 9 .54 9.176A3 3 0 0 0 6.62 21h10.757a3 3 0 0 0 2.995-2.824L20.913 9H3.087Zm6.163 3.75A.75.75 0 0 1 10 12h4a.75.75 0 0 1 0 1.5h-4a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function ArchiveOutIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M3.375 3C2.339 3 1.5 3.84 1.5 4.875v.75c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875v-.75C20.5 3.839 19.66 3 18.625 3H3.375Z" />
+      <path fillRule="evenodd" d="M12 9.75a.75.75 0 0 1 .75.75v6.75a.75.75 0 0 1-1.5 0V10.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
+      <path fillRule="evenodd" d="M15.75 12a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5h-3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function TrashRowIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 0 1 3.878.512.75.75 0 1 1-.256 1.478l-.209-.035-1.005 13.07a3 3 0 0 1-2.991 2.77H8.084a3 3 0 0 1-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 0 1-.256-1.478A48.567 48.567 0 0 1 7.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 0 1 3.369 0c1.603.051 2.815 1.387 2.815 2.951Zm-6.136-1.452a51.196 51.196 0 0 1 3.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 0 0-6 0v-.113c0-.794.609-1.428 1.364-1.452Zm-.355 5.945a.75.75 0 1 0-1.5.058l.347 9a.75.75 0 1 0 1.499-.058l-.346-9Zm5.48.058a.75.75 0 1 0-1.498-.058l-.347 9a.75.75 0 0 0 1.5.058l.345-9Z" clipRule="evenodd" />
     </svg>
   )
 }

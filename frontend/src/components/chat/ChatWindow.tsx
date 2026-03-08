@@ -1,4 +1,5 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import type { Chat } from '../../types/chat'
 import { env } from '../../config/env'
 import { socket } from '../../lib/socket'
@@ -185,7 +186,15 @@ export function ChatWindow({
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [outgoingCall, setOutgoingCall] = useState<{ chatId: string; roomName: string } | null>(null)
+  const [chatSearchOpen, setChatSearchOpen] = useState(false)
+  const [chatSearchQuery, setChatSearchQuery] = useState('')
+  const [searchMatchIndex, setSearchMatchIndex] = useState(0)
+  const [chatHeaderMenuOpen, setChatHeaderMenuOpen] = useState(false)
+  const [chatHeaderMenuStyle, setChatHeaderMenuStyle] = useState<{ top: number; left: number } | null>(null)
   const bgPickerRef = useRef<HTMLDivElement>(null)
+  const chatHeaderMenuRef = useRef<HTMLButtonElement>(null)
+  const chatHeaderMenuDropdownRef = useRef<HTMLDivElement>(null)
+  const chatSearchInputRef = useRef<HTMLInputElement>(null)
   const outgoingCallRef = useRef(outgoingCall)
   const ringStopRef = useRef<(() => void) | null>(null)
   outgoingCallRef.current = outgoingCall
@@ -241,8 +250,9 @@ export function ChatWindow({
   }, [])
 
   useEffect(() => {
+    if (chatSearchOpen) return
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chat?.messages])
+  }, [chat?.messages, chatSearchOpen])
 
   useEffect(() => {
     if (!showBackgroundPicker) return
@@ -252,6 +262,98 @@ export function ChatWindow({
     document.addEventListener('click', close)
     return () => document.removeEventListener('click', close)
   }, [showBackgroundPicker])
+
+  useEffect(() => {
+    if (chatSearchOpen) {
+      chatSearchInputRef.current?.focus()
+    } else {
+      setChatSearchQuery('')
+    }
+  }, [chatSearchOpen])
+
+  useEffect(() => {
+    if (!chatHeaderMenuOpen || !chatHeaderMenuRef.current) {
+      setChatHeaderMenuStyle(null)
+      return
+    }
+    const rect = chatHeaderMenuRef.current.getBoundingClientRect()
+    const dropdownWidth = 192 // min-w-[12rem]
+    const left = Math.max(8, Math.min(rect.right - dropdownWidth, rect.left))
+    setChatHeaderMenuStyle({
+      top: rect.bottom + 4,
+      left,
+    })
+  }, [chatHeaderMenuOpen])
+
+  useEffect(() => {
+    if (!chatHeaderMenuOpen) return
+    const close = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (
+        chatHeaderMenuRef.current?.contains(target) ||
+        chatHeaderMenuDropdownRef.current?.contains(target)
+      ) return
+      setChatHeaderMenuOpen(false)
+      setShowBackgroundPicker(false)
+    }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [chatHeaderMenuOpen])
+
+  const messagesChronological = useMemo(() => {
+    if (!chat) return []
+    const withOwn = chat.messages.map((m) => ({
+      ...m,
+      isOwn: m.senderId === currentUserId,
+    }))
+    return [...withOwn].sort((a, b) => a.timestamp - b.timestamp)
+  }, [chat, currentUserId])
+
+  const pinned = useMemo(
+    () => messagesChronological.filter((m) => m.pinned),
+    [messagesChronological]
+  )
+
+  const matchingMessageIds = useMemo(() => {
+    const q = chatSearchQuery.trim().toLowerCase()
+    if (!q) return []
+    return messagesChronological
+      .filter((m) => {
+        const text = (m.text ?? '').toLowerCase()
+        return text.includes(q)
+      })
+      .map((m) => m.id)
+  }, [messagesChronological, chatSearchQuery])
+
+  const scrollToSearchMatch = useCallback((messageId: string) => {
+    const container = messagesContainerRef.current
+    const messageEl = document.getElementById(`msg-${messageId}`)
+    if (!container || !messageEl) return
+    const containerRect = container.getBoundingClientRect()
+    const msgRect = messageEl.getBoundingClientRect()
+    const relativeTop = msgRect.top - containerRect.top + container.scrollTop
+    const scrollTo = relativeTop - container.clientHeight / 2 + msgRect.height / 2
+    container.scrollTo({ top: Math.max(0, scrollTo), behavior: 'smooth' })
+  }, [])
+
+  useEffect(() => {
+    if (!chatSearchQuery.trim()) {
+      setSearchMatchIndex(0)
+      return
+    }
+    setSearchMatchIndex(0)
+  }, [chatSearchQuery])
+
+  useEffect(() => {
+    if (matchingMessageIds.length === 0) return
+    const idx = Math.min(searchMatchIndex, matchingMessageIds.length - 1)
+    const id = matchingMessageIds[idx]
+    if (id) scrollToSearchMatch(id)
+  }, [searchMatchIndex, matchingMessageIds, scrollToSearchMatch])
+
+  useEffect(() => {
+    if (!chatSearchOpen) setSearchMatchIndex(0)
+  }, [chatSearchOpen])
 
   if (!chat) {
     return (
@@ -264,12 +366,6 @@ export function ChatWindow({
     )
   }
 
-  const messagesWithOwn = chat.messages.map((m) => ({
-    ...m,
-    isOwn: m.senderId === currentUserId,
-  }))
-  const pinned = messagesWithOwn.filter((m) => m.pinned)
-  const messagesChronological = [...messagesWithOwn].sort((a, b) => a.timestamp - b.timestamp)
   const chatBgStyle = chat.chatBackground && CHAT_BACKGROUND_PRESETS[chat.chatBackground]
     ? CHAT_BACKGROUND_PRESETS[chat.chatBackground]
     : undefined
@@ -277,7 +373,7 @@ export function ChatWindow({
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bitchat-bg">
       <header className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-bitchat-border bg-bitchat-panel p-3 safe-t safe-l safe-r md:p-4">
-        {onBack && (
+        {onBack && !chatSearchOpen && (
           <button
             type="button"
             onClick={onBack}
@@ -287,106 +383,213 @@ export function ChatWindow({
             <BackIcon />
           </button>
         )}
-        <div className="flex min-w-0 flex-1 items-center gap-2 pl-2 sm:pl-4 md:pl-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bitchat-blue-dark text-bitchat-cyan font-semibold">
-            {(() => {
-              const avatarUrl = chat.avatar || chat.image
-              const url = avatarUrl && avatarUrl.trim()
-                ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')
-                    ? avatarUrl
-                    : `${env.apiUrl.replace(/\/$/, '')}${avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`}`)
-                : null
-              return url
-                ? <img src={url} alt="" className="h-full w-full object-cover" />
-                : chat.name.charAt(0).toUpperCase()
-            })()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate font-semibold text-bitchat-fg">{chat.name}</h2>
-            <p className="text-xs text-bitchat-fg/80 truncate">
-              {getChatHeaderSubtitle(chat, currentUserId, otherUserOnline, usersInCurrentChat)}
-            </p>
-          </div>
-        </div>
-        {(onUpdateChatBackground || (chat.otherUserId && (onBlockUser || onUnblockUser))) && (
-          <div className="flex items-center gap-1">
-            {onUpdateChatBackground && (
-              <div className="relative" ref={showBackgroundPicker ? bgPickerRef : undefined}>
-                <button
-                  type="button"
-                  onClick={() => setShowBackgroundPicker((v) => !v)}
-                  className="rounded-lg p-2 text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-bitchat-cyan"
-                  title="Fondo del chat"
-                  aria-label="Fondo del chat"
-                >
-                  <WallpaperIcon />
-                </button>
-                {showBackgroundPicker && (
-                  <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-2 shadow-lg">
-                    <p className="px-3 py-1 text-xs text-bitchat-fg-muted">Fondo</p>
-                    {Object.entries(CHAT_BACKGROUND_PRESETS).map(([key, value]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => {
-                          onUpdateChatBackground(chat.id, key === 'default' ? null : key)
-                          setShowBackgroundPicker(false)
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
-                      >
-                        <span
-                          className="h-5 w-8 rounded border border-bitchat-border shrink-0"
-                          style={value ? { background: value } : { background: 'var(--color-bitchat-bg)' }}
-                        />
-                        {CHAT_BACKGROUND_LABELS[key] ?? key}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {chat.otherUserId && (onBlockUser || onUnblockUser) && (
-              <BlockUnblockButton
-                otherUserId={chat.otherUserId}
-                blockedUserIds={blockedUserIds}
-                onBlock={onBlockUser}
-                onUnblock={onUnblockUser}
+        {chatSearchOpen ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setChatSearchOpen(false)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-bitchat-fg-muted hover:bg-bitchat-sidebar hover:text-bitchat-fg"
+              aria-label="Cerrar búsqueda"
+            >
+              <BackIcon />
+            </button>
+            <div className="flex min-w-0 flex-1 items-center gap-2 pl-2">
+              <SearchIconHeader className="h-5 w-5 shrink-0 text-bitchat-fg-muted" />
+              <input
+                ref={chatSearchInputRef}
+                type="text"
+                value={chatSearchQuery}
+                onChange={(e) => setChatSearchQuery(e.target.value)}
+                placeholder="Buscar en la conversación"
+                className="min-w-0 flex-1 rounded-lg border-0 bg-bitchat-sidebar px-3 py-2 text-sm text-bitchat-fg placeholder:text-bitchat-fg-muted focus:outline-none focus:ring-1 focus:ring-bitchat-cyan"
               />
-            )}
-            {chat.otherUserId && (
+              {chatSearchQuery.trim() && (
+                <>
+                  <div className="flex shrink-0 items-center gap-0.5 text-bitchat-fg-muted">
+                    <span className="text-xs tabular-nums">
+                      {matchingMessageIds.length === 0
+                        ? 'Sin resultados'
+                        : `${Math.min(searchMatchIndex + 1, matchingMessageIds.length)} de ${matchingMessageIds.length}`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchMatchIndex((i) => Math.max(0, i - 1))}
+                      disabled={matchingMessageIds.length === 0 || searchMatchIndex <= 0}
+                      className="rounded p-1.5 text-bitchat-fg-muted hover:bg-bitchat-sidebar hover:text-bitchat-fg disabled:opacity-40 disabled:pointer-events-none"
+                      aria-label="Coincidencia anterior"
+                    >
+                      <ChevronUpIcon className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSearchMatchIndex((i) => Math.min(matchingMessageIds.length - 1, i + 1))}
+                      disabled={matchingMessageIds.length === 0 || searchMatchIndex >= matchingMessageIds.length - 1}
+                      className="rounded p-1.5 text-bitchat-fg-muted hover:bg-bitchat-sidebar hover:text-bitchat-fg disabled:opacity-40 disabled:pointer-events-none"
+                      aria-label="Siguiente coincidencia"
+                    >
+                      <ChevronDownIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setChatSearchQuery('')}
+                    className="shrink-0 rounded-full p-1 text-bitchat-fg-muted hover:bg-bitchat-sidebar hover:text-bitchat-fg"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <CloseSearchIcon className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex min-w-0 flex-1 items-center gap-2 pl-2 sm:pl-4 md:pl-5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bitchat-blue-dark text-bitchat-cyan font-semibold">
+                {(() => {
+                  const avatarUrl = chat.avatar || chat.image
+                  const url = avatarUrl && avatarUrl.trim()
+                    ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')
+                        ? avatarUrl
+                        : `${env.apiUrl.replace(/\/$/, '')}${avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`}`)
+                    : null
+                  return url
+                    ? <img src={url} alt="" className="h-full w-full object-cover" />
+                    : chat.name.charAt(0).toUpperCase()
+                })()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate font-semibold text-bitchat-fg">{chat.name}</h2>
+                <p className="text-xs text-bitchat-fg/80 truncate">
+                  {getChatHeaderSubtitle(chat, currentUserId, otherUserOnline, usersInCurrentChat)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => {
-                  const roomName = makeJitsiRoomName()
-                  socket.emit(SOCKET_EVENTS.VIDEO_CALL_OFFER, {
-                    chatId: chat.id,
-                    roomName,
-                    callerId: currentUserId,
-                    callerName: currentUserName,
-                    callerAvatar: currentUserAvatar ?? null,
-                  })
-                  setOutgoingCall({ chatId: chat.id, roomName })
-                }}
-                disabled={!!outgoingCall}
-                className="rounded-lg p-2 text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-bitchat-cyan disabled:opacity-50"
-                title="Videollamada"
-                aria-label="Videollamada"
+                onClick={() => setChatSearchOpen(true)}
+                className="rounded-lg p-2 text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-bitchat-cyan"
+                title="Buscar en el chat"
+                aria-label="Buscar en el chat"
               >
-                <VideoCallIcon className="h-5 w-5" />
+                <SearchIconHeader className="h-5 w-5" />
               </button>
-            )}
-            {onClearChat && (
-              <button
-                type="button"
-                onClick={() => setShowClearConfirm(true)}
-                className="rounded-lg p-2 text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-red-400"
-                title="Borrar conversación"
-                aria-label="Borrar conversación"
-              >
-                <TrashIcon className="h-5 w-5" />
-              </button>
-            )}
-          </div>
+              {(onUpdateChatBackground || (chat.otherUserId && (onBlockUser || onUnblockUser)) || chat.otherUserId || onClearChat) && (
+                <div className="relative">
+                  <button
+                    ref={chatHeaderMenuRef}
+                    type="button"
+                    onClick={() => setChatHeaderMenuOpen((v) => !v)}
+                    className="rounded-lg p-2 text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-bitchat-cyan"
+                    title="Más opciones"
+                    aria-label="Más opciones"
+                    aria-expanded={chatHeaderMenuOpen}
+                  >
+                    <DotsVerticalIcon className="h-5 w-5" />
+                  </button>
+                  {chatHeaderMenuOpen && chatHeaderMenuStyle && createPortal(
+                    <div
+                      ref={chatHeaderMenuDropdownRef}
+                      className="fixed z-[100] min-w-[12rem] rounded-lg border border-bitchat-border bg-bitchat-sidebar py-2 shadow-xl"
+                      style={{ top: chatHeaderMenuStyle.top, left: chatHeaderMenuStyle.left }}
+                    >
+                      {onUpdateChatBackground && (
+                        <div className="relative" ref={showBackgroundPicker ? bgPickerRef : undefined}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setShowBackgroundPicker((v) => !v)
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                          >
+                            <WallpaperIcon />
+                            Fondo del chat
+                          </button>
+                          {showBackgroundPicker && (
+                            <div className="absolute right-full top-0 z-20 mr-1 w-44 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-2 shadow-lg">
+                              <p className="px-3 py-1 text-xs text-bitchat-fg-muted">Fondo</p>
+                              {Object.entries(CHAT_BACKGROUND_PRESETS).map(([key, value]) => (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => {
+                                    onUpdateChatBackground(chat.id, key === 'default' ? null : key)
+                                    setShowBackgroundPicker(false)
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                                >
+                                  <span
+                                    className="h-5 w-8 rounded border border-bitchat-border shrink-0"
+                                    style={value ? { background: value } : { background: 'var(--color-bitchat-bg)' }}
+                                  />
+                                  {CHAT_BACKGROUND_LABELS[key] ?? key}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {chat.otherUserId && (onBlockUser || onUnblockUser) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const isBlocked = blockedUserIds.includes(chat.otherUserId!)
+                            isBlocked ? onUnblockUser?.(chat.otherUserId!) : onBlockUser?.(chat.otherUserId!)
+                            setChatHeaderMenuOpen(false)
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                        >
+                          {blockedUserIds.includes(chat.otherUserId) ? (
+                            <><UnblockIcon /> Desbloquear</>
+                          ) : (
+                            <><BlockIcon /> Bloquear</>
+                          )}
+                        </button>
+                      )}
+                      {chat.otherUserId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const roomName = makeJitsiRoomName()
+                            socket.emit(SOCKET_EVENTS.VIDEO_CALL_OFFER, {
+                              chatId: chat.id,
+                              roomName,
+                              callerId: currentUserId,
+                              callerName: currentUserName,
+                              callerAvatar: currentUserAvatar ?? null,
+                            })
+                            setOutgoingCall({ chatId: chat.id, roomName })
+                            setChatHeaderMenuOpen(false)
+                          }}
+                          disabled={!!outgoingCall}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel disabled:opacity-50"
+                        >
+                          <VideoCallIcon className="h-5 w-5" />
+                          Videollamada
+                        </button>
+                      )}
+                      {onClearChat && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowClearConfirm(true)
+                            setChatHeaderMenuOpen(false)
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                          Borrar conversación
+                        </button>
+                      )}
+                    </div>,
+                    document.body
+                  )}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </header>
 
@@ -437,6 +640,7 @@ export function ChatWindow({
               message={message}
               currentUserId={currentUserId}
               showSenderName={!!chat && !chat.otherUserId && (chat.participants?.length ?? 0) > 0}
+              searchHighlight={chatSearchQuery.trim() || undefined}
               onReaction={onReaction}
               onEditMessage={onEditMessage}
               onPinMessage={onPinMessage}
@@ -524,35 +728,6 @@ export function ChatWindow({
   )
 }
 
-function BlockUnblockButton({
-  otherUserId,
-  blockedUserIds,
-  onBlock,
-  onUnblock,
-}: {
-  otherUserId: string
-  blockedUserIds: string[]
-  onBlock?: (userId: string) => void
-  onUnblock?: (userId: string) => void
-}) {
-  const isBlocked = blockedUserIds.includes(otherUserId)
-  return (
-    <button
-      type="button"
-      onClick={() => (isBlocked ? onUnblock?.(otherUserId) : onBlock?.(otherUserId))}
-      className={`rounded-lg p-2 transition-colors ${
-        isBlocked
-          ? 'text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-bitchat-cyan'
-          : 'text-bitchat-fg/70 hover:bg-bitchat-sidebar hover:text-red-400'
-      }`}
-      title={isBlocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
-      aria-label={isBlocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
-    >
-      {isBlocked ? <UnblockIcon /> : <BlockIcon />}
-    </button>
-  )
-}
-
 function BlockIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
@@ -573,6 +748,47 @@ function BackIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
       <path fillRule="evenodd" d="M7.72 12.53a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 1 1 1.06 1.06L9.31 12l6.97 6.97a.75.75 0 1 1-1.06 1.06l-7.5-7.5Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function ChevronUpIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function SearchIconHeader({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  )
+}
+
+function CloseSearchIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function DotsVerticalIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M10.5 6a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm0 6a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm0 6a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" clipRule="evenodd" />
     </svg>
   )
 }
