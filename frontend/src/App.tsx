@@ -142,6 +142,7 @@ function ChatLayout() {
             chats={chats}
             currentChatId={currentChatId}
             onSelectChat={handleSelectChat}
+            currentUserId={currentUserId}
             currentUserName={displayName}
             currentUserAvatar={user?.avatar}
             onLogout={() => setShowLogoutConfirm(true)}

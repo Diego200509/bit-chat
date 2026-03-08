@@ -196,6 +196,8 @@ async function getChatsForUser(userId, limit = 50) {
       id: p._id.toString(),
       name: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
     }));
+    const lastMessageSenderId = lastMsg?.sender ? lastMsg.sender.toString() : (lastMsg?.senderIdFallback || null);
+    const lastMessageReadBy = (lastMsg?.readBy || []).map((id) => (id && id.toString ? id.toString() : String(id)));
     list.push({
       id: 'chat-1',
       name: 'General',
@@ -207,6 +209,8 @@ async function getChatsForUser(userId, limit = 50) {
       isArchived: archived,
       lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : ''),
       lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : (general.updatedAt ? new Date(general.updatedAt).getTime() : null),
+      lastMessageSenderId: lastMessageSenderId || undefined,
+      lastMessageReadBy: lastMessageReadBy.length ? lastMessageReadBy : undefined,
     });
   }
 
@@ -222,6 +226,8 @@ async function getChatsForUser(userId, limit = 50) {
     const pinned = (c.pinnedBy || []).some((id) => id.toString() === userId);
     const archived = (c.archivedBy || []).some((id) => id.toString() === userId);
     const otherUserLastSeen = other?.lastSeen ? new Date(other.lastSeen).getTime() : null;
+    const lastMessageSenderId = lastMsg?.sender ? lastMsg.sender.toString() : (lastMsg?.senderIdFallback || null);
+    const lastMessageReadBy = (lastMsg?.readBy || []).map((id) => (id && id.toString ? id.toString() : String(id)));
     list.push({
       id: c._id.toString(),
       name: displayName,
@@ -234,6 +240,8 @@ async function getChatsForUser(userId, limit = 50) {
       isArchived: archived,
       lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : ''),
       lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : new Date(c.updatedAt).getTime(),
+      lastMessageSenderId: lastMessageSenderId || undefined,
+      lastMessageReadBy: lastMessageReadBy.length ? lastMessageReadBy : undefined,
     });
   }
 
@@ -250,6 +258,8 @@ async function getChatsForUser(userId, limit = 50) {
       id: p._id.toString(),
       name: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
     }));
+    const lastMessageSenderId = lastMsg?.sender ? lastMsg.sender.toString() : (lastMsg?.senderIdFallback || null);
+    const lastMessageReadBy = (lastMsg?.readBy || []).map((id) => (id && id.toString ? id.toString() : String(id)));
     list.push({
       id: c._id.toString(),
       name: c.name || 'Grupo',
@@ -261,6 +271,8 @@ async function getChatsForUser(userId, limit = 50) {
       isArchived: archived,
       lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : ''),
       lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : new Date(c.updatedAt).getTime(),
+      lastMessageSenderId: lastMessageSenderId || undefined,
+      lastMessageReadBy: lastMessageReadBy.length ? lastMessageReadBy : undefined,
     });
   }
 

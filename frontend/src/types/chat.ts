@@ -41,6 +41,8 @@ export interface Chat {
   participants?: Array<{ id: string; name: string }>
   lastMessage?: string
   lastMessageTime?: number
+  lastMessageSenderId?: string | null
+  lastMessageReadBy?: string[]
   unread?: number
   chatBackground?: string | null
   messages: Message[]

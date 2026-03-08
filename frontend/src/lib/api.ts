@@ -60,6 +60,8 @@ export interface ChatListItem {
   participants?: Array<{ id: string; name: string }>
   lastMessage?: string
   lastMessageTime?: number | null
+  lastMessageSenderId?: string | null
+  lastMessageReadBy?: string[]
   isPinned?: boolean
   isArchived?: boolean
 }

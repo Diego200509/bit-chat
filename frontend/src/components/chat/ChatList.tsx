@@ -16,10 +16,43 @@ function LastMessagePreview({ text }: { text: string }) {
   )
 }
 
+function formatLastMessageTime(timestamp: number): string {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  if (dateOnly.getTime() === today.getTime()) {
+    return date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+  }
+  if (dateOnly.getTime() === yesterday.getTime()) {
+    return 'Ayer'
+  }
+  return date.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function SingleCheckIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  )
+}
+
+function DoubleCheckIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
 interface ChatListProps {
   chats: Chat[]
   currentChatId: string | null
   onSelectChat: (chatId: string) => void
+  currentUserId?: string
   currentUserName?: string
   currentUserAvatar?: string | null
   onLogout?: () => void
@@ -40,6 +73,7 @@ export function ChatList({
   chats,
   currentChatId,
   onSelectChat,
+  currentUserId,
   currentUserName = 'Yo',
   onLogout,
   onOpenFriends,
@@ -135,9 +169,31 @@ export function ChatList({
               })()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-bitchat-fg truncate">{chat.name}</p>
-              {chat.lastMessage && (
-                <LastMessagePreview text={chat.lastMessage} />
+              <div className="flex items-center gap-2 min-w-0">
+                <p className="font-medium text-bitchat-fg truncate min-w-0 flex-1">{chat.name}</p>
+                {chat.lastMessageTime != null && (
+                  <span className="flex-shrink-0 text-[11px] text-bitchat-fg-muted">
+                    {formatLastMessageTime(chat.lastMessageTime)}
+                  </span>
+                )}
+              </div>
+              {chat.lastMessage != null && (
+                <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+                  {currentUserId && chat.lastMessageSenderId === currentUserId && (
+                    <span
+                      className="flex-shrink-0 text-bitchat-fg-muted"
+                      title={chat.lastMessageReadBy?.some((id) => id !== currentUserId) ? 'Visto' : 'Enviado'}
+                    >
+                      {chat.lastMessageReadBy?.some((id) => id !== currentUserId)
+                        ? <DoubleCheckIcon className="w-3.5 h-3.5 text-bitchat-cyan" />
+                        : <SingleCheckIcon className="w-3.5 h-3.5" />
+                      }
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <LastMessagePreview text={chat.lastMessage} />
+                  </div>
+                </div>
               )}
             </div>
             {chat.unread != null && chat.unread > 0 && (

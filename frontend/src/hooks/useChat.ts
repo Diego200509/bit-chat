@@ -24,6 +24,8 @@ function listItemToChat(item: api.ChatListItem & { isBlocked?: boolean; unread?:
     chatBackground: item.chatBackground ?? null,
     lastMessage: item.lastMessage,
     lastMessageTime: item.lastMessageTime ?? undefined,
+    lastMessageSenderId: item.lastMessageSenderId ?? null,
+    lastMessageReadBy: item.lastMessageReadBy ?? undefined,
     unread: item.unread ?? 0,
     messages: [],
   }
@@ -253,6 +255,8 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
                 messages: normalized,
                 lastMessage: lastPreview || c.lastMessage,
                 lastMessageTime: last?.timestamp ?? c.lastMessageTime,
+                lastMessageSenderId: last?.senderId ?? c.lastMessageSenderId,
+                lastMessageReadBy: last?.readBy ?? c.lastMessageReadBy,
                 unread: 0,
               }
             : c
@@ -297,7 +301,13 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
           if (existing.messages.some((m) => m.id === msg.id)) {
             return prev.map((c) =>
               c.id === msg.chatId
-                ? { ...c, lastMessage: lastMessagePreview || c.lastMessage, lastMessageTime: msg.timestamp }
+                ? {
+                    ...c,
+                    lastMessage: lastMessagePreview || c.lastMessage,
+                    lastMessageTime: msg.timestamp,
+                    lastMessageSenderId: msg.senderId ?? c.lastMessageSenderId,
+                    lastMessageReadBy: (msg as { readBy?: string[] }).readBy ?? c.lastMessageReadBy,
+                  }
                 : c
             )
           }
@@ -308,6 +318,8 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
                   messages: [...c.messages, message],
                   lastMessage: lastMessagePreview || c.lastMessage,
                   lastMessageTime: msg.timestamp,
+                  lastMessageSenderId: msg.senderId ?? c.lastMessageSenderId,
+                  lastMessageReadBy: (msg as { readBy?: string[] }).readBy ?? c.lastMessageReadBy,
                   unread: isInThisChat ? 0 : (c.unread ?? 0) + 1,
                 }
               : c
@@ -318,6 +330,8 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
           name: msg.senderId === userId ? userName : msg.senderName,
           lastMessage: lastMessagePreview,
           lastMessageTime: msg.timestamp,
+          lastMessageSenderId: msg.senderId ?? null,
+          lastMessageReadBy: (msg as { readBy?: string[] }).readBy ?? undefined,
           unread: unreadDelta,
           messages: [message],
         }
@@ -379,7 +393,13 @@ export function useChat(userId = DEFAULT_USER_ID, userName = DEFAULT_USER_NAME, 
               : m
           )
           next.sort((a, b) => (a.pinned ? 0 : 1) - (b.pinned ? 0 : 1) || (a.timestamp - b.timestamp))
-          return { ...c, messages: next }
+          const lastMsg = next[next.length - 1]
+          const isLastMessage = lastMsg?.id === updated.id
+          return {
+            ...c,
+            messages: next,
+            ...(isLastMessage && updated.readBy !== undefined && { lastMessageReadBy: updated.readBy }),
+          }
         })
       )
     }
