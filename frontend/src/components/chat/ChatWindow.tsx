@@ -59,6 +59,27 @@ const CHAT_BACKGROUND_PRESETS: Record<string, string> = {
   warm: 'linear-gradient(135deg, #1c1917 0%, #292524 50%, #1c1917 100%)',
   cool: 'linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
   subtle: 'linear-gradient(180deg, #0a0a0a 0%, #171717 100%)',
+  night: 'linear-gradient(180deg, #0c0a1d 0%, #1a1625 50%, #0f0d1a 100%)',
+  ocean: 'linear-gradient(180deg, #0a1628 0%, #0f2847 50%, #0c1929 100%)',
+  forest: 'linear-gradient(180deg, #0a1410 0%, #142118 50%, #0d1912 100%)',
+  sunset: 'linear-gradient(135deg, #1a0f0a 0%, #2d1810 50%, #1a0f0a 100%)',
+  lavender: 'linear-gradient(180deg, #150f1a 0%, #1e1528 50%, #150f1a 100%)',
+  slate: 'linear-gradient(180deg, #0f1215 0%, #1a1f26 50%, #0f1215 100%)',
+  carbon: 'linear-gradient(145deg, #111 0%, #1c1c1c 50%, #0d0d0d 100%)',
+}
+
+const CHAT_BACKGROUND_LABELS: Record<string, string> = {
+  default: 'Por defecto',
+  warm: 'Cálido',
+  cool: 'Fresco',
+  subtle: 'Sutil',
+  night: 'Noche',
+  ocean: 'Océano',
+  forest: 'Bosque',
+  sunset: 'Atardecer',
+  lavender: 'Lavanda',
+  slate: 'Pizarra',
+  carbon: 'Carbón',
 }
 
 function formatLastSeen(timestamp: number): string {
@@ -315,7 +336,7 @@ export function ChatWindow({
                           className="h-5 w-8 rounded border border-bitchat-border shrink-0"
                           style={value ? { background: value } : { background: 'var(--color-bitchat-bg)' }}
                         />
-                        {key === 'default' ? 'Por defecto' : key === 'warm' ? 'Cálido' : key === 'cool' ? 'Fresco' : 'Sutil'}
+                        {CHAT_BACKGROUND_LABELS[key] ?? key}
                       </button>
                     ))}
                   </div>

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import type { Chat } from '../../types/chat'
 import { ConfirmModal } from './ConfirmModal'
 import { CreateGroupModal } from './CreateGroupModal'
@@ -55,18 +56,48 @@ export function ChatList({
   onToggleTheme,
 }: ChatListProps) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [menuStyle, setMenuStyle] = useState<{ top: number; left: number } | null>(null)
   const [clearConfirmChatId, setClearConfirmChatId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuDropdownRef = useRef<HTMLDivElement>(null)
 
   const mainChats = chats.filter((c) => !c.isArchived)
   const archivedChats = chats.filter((c) => c.isArchived)
 
   useEffect(() => {
+    if (!menuOpenId || !menuRef.current) {
+      setMenuStyle(null)
+      return
+    }
+    const rect = menuRef.current.getBoundingClientRect()
+    const padding = 8
+    const menuWidth = 176
+    const viewportW = window.innerWidth
+    const left = Math.max(padding, Math.min(viewportW - menuWidth - padding, rect.right - menuWidth))
+    setMenuStyle({ top: rect.bottom + padding, left })
+  }, [menuOpenId])
+
+  useLayoutEffect(() => {
+    if (!menuOpenId || !menuStyle || !menuRef.current || !menuDropdownRef.current) return
+    const rect = menuRef.current.getBoundingClientRect()
+    const padding = 8
+    const viewportH = window.innerHeight
+    const menuHeight = menuDropdownRef.current.offsetHeight
+    const isCurrentlyBelow = menuStyle.top >= rect.bottom
+    if (isCurrentlyBelow && menuStyle.top + menuHeight > viewportH - padding) {
+      const topUp = rect.top - menuHeight - padding
+      setMenuStyle((prev) => (prev ? { ...prev, top: Math.max(padding, topUp) } : prev))
+    }
+  }, [menuOpenId, menuStyle])
+
+  useEffect(() => {
     if (!menuOpenId) return
     const close = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpenId(null)
+      const target = e.target as Node
+      if (menuRef.current?.contains(target) || menuDropdownRef.current?.contains(target)) return
+      setMenuOpenId(null)
     }
     document.addEventListener('click', close)
     return () => document.removeEventListener('click', close)
@@ -128,8 +159,12 @@ export function ChatList({
               >
                 <DotsIcon />
               </button>
-              {menuOpen && (
-                <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-1 shadow-lg">
+              {menuOpen && menuStyle && createPortal(
+                <div
+                  ref={menuDropdownRef}
+                  className="fixed z-[100] w-44 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-1 shadow-xl"
+                  style={{ top: menuStyle.top, left: menuStyle.left }}
+                >
                   {chat.isPinned ? (
                     onUnpinChat && (
                       <button
@@ -196,7 +231,8 @@ export function ChatList({
                       Borrar conversación
                     </button>
                   )}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           )}

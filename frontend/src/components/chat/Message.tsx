@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { Message as MessageType } from '../../types/chat'
 import { env } from '../../config/env'
@@ -97,6 +97,7 @@ export function Message({ message, currentUserId, showSenderName = false, onReac
   const [menuStyle, setMenuStyle] = useState<{ top: number; left: number } | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const type = message.type || 'text'
   const hasReactions = message.reactions && message.reactions.length > 0
   const canEdit = isOwn && type === 'text' && onEditMessage
@@ -141,11 +142,24 @@ export function Message({ message, currentUserId, showSenderName = false, onReac
     }
     const rect = menuButtonRef.current.getBoundingClientRect()
     const padding = 8
-    const menuWidth = 160
-    const top = rect.bottom + padding
-    const left = isOwn ? Math.max(padding, rect.right - menuWidth) : Math.min(window.innerWidth - menuWidth - padding, rect.left)
-    setMenuStyle({ top, left })
+    const menuWidth = 180
+    const viewportW = window.innerWidth
+    const left = Math.max(padding, Math.min(viewportW - menuWidth - padding, isOwn ? rect.right - menuWidth : rect.left))
+    setMenuStyle({ top: rect.bottom + padding, left })
   }, [showMenu, isOwn])
+
+  useLayoutEffect(() => {
+    if (!showMenu || !menuStyle || !menuButtonRef.current || !menuRef.current) return
+    const rect = menuButtonRef.current.getBoundingClientRect()
+    const padding = 8
+    const viewportH = window.innerHeight
+    const menuHeight = menuRef.current.offsetHeight
+    const isCurrentlyBelow = menuStyle.top >= rect.bottom
+    if (isCurrentlyBelow && menuStyle.top + menuHeight > viewportH - padding) {
+      const topUp = rect.top - menuHeight - padding
+      setMenuStyle((prev) => (prev ? { ...prev, top: Math.max(padding, topUp) } : prev))
+    }
+  }, [showMenu, menuStyle])
 
   useEffect(() => {
     if (!showMenu) return
@@ -354,8 +368,9 @@ export function Message({ message, currentUserId, showSenderName = false, onReac
                 {showMenu && menuStyle &&
                   createPortal(
                     <div
+                      ref={menuRef}
                       data-message-menu
-                      className="fixed rounded-lg bg-bitchat-sidebar border border-bitchat-border py-1 shadow-xl z-[100] min-w-[140px]"
+                      className="fixed rounded-lg bg-bitchat-sidebar border border-bitchat-border py-1 shadow-xl z-[100] min-w-[180px] max-h-[min(280px,70vh)] overflow-y-auto"
                       style={{ top: menuStyle.top, left: menuStyle.left }}
                     >
                       {canEdit && (
