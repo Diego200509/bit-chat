@@ -287,24 +287,26 @@ export function ChatWindow({
             <BackIcon />
           </button>
         )}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bitchat-blue-dark text-bitchat-cyan font-semibold">
-          {(() => {
-            const avatarUrl = chat.avatar || chat.image
-            const url = avatarUrl && avatarUrl.trim()
-              ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')
-                  ? avatarUrl
-                  : `${env.apiUrl.replace(/\/$/, '')}${avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`}`)
-              : null
-            return url
-              ? <img src={url} alt="" className="h-full w-full object-cover" />
-              : chat.name.charAt(0).toUpperCase()
-          })()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate font-semibold text-bitchat-fg">{chat.name}</h2>
-          <p className="text-xs text-bitchat-fg/80 truncate">
-            {getChatHeaderSubtitle(chat, currentUserId, otherUserOnline, usersInCurrentChat)}
-          </p>
+        <div className="flex min-w-0 flex-1 items-center gap-2 pl-2 sm:pl-4 md:pl-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bitchat-blue-dark text-bitchat-cyan font-semibold">
+            {(() => {
+              const avatarUrl = chat.avatar || chat.image
+              const url = avatarUrl && avatarUrl.trim()
+                ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')
+                    ? avatarUrl
+                    : `${env.apiUrl.replace(/\/$/, '')}${avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`}`)
+                : null
+              return url
+                ? <img src={url} alt="" className="h-full w-full object-cover" />
+                : chat.name.charAt(0).toUpperCase()
+            })()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate font-semibold text-bitchat-fg">{chat.name}</h2>
+            <p className="text-xs text-bitchat-fg/80 truncate">
+              {getChatHeaderSubtitle(chat, currentUserId, otherUserOnline, usersInCurrentChat)}
+            </p>
+          </div>
         </div>
         {(onUpdateChatBackground || (chat.otherUserId && (onBlockUser || onUnblockUser))) && (
           <div className="flex items-center gap-1">

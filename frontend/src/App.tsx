@@ -129,9 +129,10 @@ function ChatLayout() {
   )
 
   return (
-    <div className="h-screen flex overflow-hidden bg-bitchat-bg text-bitchat-fg md:gap-3 md:p-2">
+    <div className="min-h-screen bg-bitchat-bg text-bitchat-fg p-1.5 sm:p-2 md:p-2.5">
+      <div className="h-[calc(100vh-0.75rem)] sm:h-[calc(100vh-1rem)] md:h-[calc(100vh-1.25rem)] flex overflow-hidden rounded-lg border border-bitchat-border/60 shadow-lg">
       <aside
-        className={`flex flex-col w-full md:w-[380px] md:flex-shrink-0 border-r border-bitchat-border bg-bitchat-sidebar ${
+        className={`flex flex-col w-full md:w-[380px] md:flex-shrink-0 md:border-r md:border-bitchat-border bg-bitchat-sidebar ${
           mobileView === 'chat' ? 'hidden md:flex' : 'flex'
         }`}
       >
@@ -161,7 +162,7 @@ function ChatLayout() {
         )}
       </aside>
       <main
-        className={`flex flex-1 flex-col min-w-0 min-h-0 ${
+        className={`flex flex-1 flex-col min-w-0 min-h-0 bg-bitchat-bg ${
           mobileView === 'list' ? 'hidden md:flex' : 'flex'
         }`}
       >
@@ -188,6 +189,7 @@ function ChatLayout() {
           currentUserAvatar={user?.avatar}
         />
       </main>
+      </div>
       {showLogoutConfirm && (
         <ConfirmModal
           title="Cerrar sesión"

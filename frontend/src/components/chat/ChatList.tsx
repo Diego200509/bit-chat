@@ -94,11 +94,26 @@ export function ChatList({
   const [clearConfirmChatId, setClearConfirmChatId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [chatFilter, setChatFilter] = useState<'all' | 'unread'>('all')
   const menuRef = useRef<HTMLDivElement>(null)
   const menuDropdownRef = useRef<HTMLDivElement>(null)
 
   const mainChats = chats.filter((c) => !c.isArchived)
   const archivedChats = chats.filter((c) => c.isArchived)
+
+  const filteredByFilter = mainChats.filter((c) => {
+    if (chatFilter === 'unread') return (c.unread ?? 0) > 0
+    return true
+  })
+  const searchLower = searchQuery.trim().toLowerCase()
+  const filteredMainChats = searchLower
+    ? filteredByFilter.filter(
+        (c) =>
+          c.name.toLowerCase().includes(searchLower) ||
+          (c.lastMessage?.toLowerCase().includes(searchLower) ?? false)
+      )
+    : filteredByFilter
 
   useEffect(() => {
     if (!menuOpenId || !menuRef.current) {
@@ -367,6 +382,46 @@ export function ChatList({
         )}
       </header>
 
+      <div className="flex shrink-0 flex-col gap-2 border-b border-bitchat-border px-5 py-3 safe-l safe-r sm:px-6 md:px-6">
+        <div className="flex min-w-0 items-center gap-2 rounded-xl border border-bitchat-border bg-bitchat-panel pl-3 pr-3 focus-within:border-bitchat-cyan focus-within:ring-1 focus-within:ring-bitchat-cyan/50">
+          <span className="shrink-0 text-bitchat-fg-muted" aria-hidden>
+            <SearchIcon />
+          </span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar un chat o iniciar uno nuevo"
+            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-bitchat-fg placeholder-bitchat-fg-muted focus:outline-none"
+            aria-label="Buscar chat"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setChatFilter('all')}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              chatFilter === 'all'
+                ? 'bg-bitchat-cyan text-bitchat-blue-dark'
+                : 'bg-bitchat-panel text-bitchat-fg-muted hover:bg-bitchat-panel/80 hover:text-bitchat-fg'
+            }`}
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            onClick={() => setChatFilter('unread')}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              chatFilter === 'unread'
+                ? 'bg-bitchat-cyan text-bitchat-blue-dark'
+                : 'bg-bitchat-panel text-bitchat-fg-muted hover:bg-bitchat-panel/80 hover:text-bitchat-fg'
+            }`}
+          >
+            No leídos
+          </button>
+        </div>
+      </div>
+
       <div className="chat-messages-scroll overscroll-behavior-contain flex-1 min-h-0 overflow-y-auto">
         {chatsLoading ? (
           <div className="flex items-center justify-center p-6 text-bitchat-fg-muted text-sm">
@@ -376,10 +431,18 @@ export function ChatList({
           <div className="p-6 text-center text-slate-500 text-sm">
             No hay conversaciones. Abre Amigos y chatea con alguien.
           </div>
+        ) : filteredMainChats.length === 0 ? (
+          <div className="p-6 text-center text-bitchat-fg-muted text-sm">
+            {searchLower
+              ? 'Ningún chat coincide con la búsqueda.'
+              : chatFilter === 'unread'
+                ? 'No hay chats con mensajes no leídos.'
+                : 'No hay conversaciones.'}
+          </div>
         ) : (
           <>
             <ul className="divide-y divide-bitchat-border">
-              {mainChats.map(renderChatRow)}
+              {filteredMainChats.map(renderChatRow)}
             </ul>
             {archivedChats.length > 0 && (
               <>
@@ -423,6 +486,14 @@ export function ChatList({
         />
       )}
     </div>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path fillRule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clipRule="evenodd" />
+    </svg>
   )
 }
 
