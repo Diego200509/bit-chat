@@ -27,64 +27,107 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
 
   if (sent) {
     return (
-      <div className="flex flex-col gap-4 w-full max-w-sm">
-        <h2 className="text-xl font-semibold text-talkapp-primary mb-1">Revisa tu correo</h2>
-        <p className="text-sm text-talkapp-fg-muted">
-          Si el correo está registrado, recibirás un enlace para restablecer tu contraseña. Revisa también la carpeta de spam.
-        </p>
+      <div className="auth-form">
+        <div className="auth-form-header">
+          <h2 className="auth-form-title">Revisa tu correo</h2>
+          <p className="auth-form-subtitle">Enlace enviado exitosamente</p>
+        </div>
+        <div className="auth-sent-notice">
+          <span className="auth-sent-icon">📬</span>
+          <p className="auth-sent-text">
+            Si el correo está registrado, recibirás un enlace para restablecer tu contraseña. Revisa también la carpeta de spam.
+          </p>
+        </div>
         <button
           type="button"
           onClick={onBackToLogin}
-          className="mt-2 rounded-xl bg-talkapp-primary text-talkapp-on-primary font-semibold py-2.5 hover:bg-talkapp-accent focus:outline-none focus:ring-2 focus:ring-talkapp-primary"
+          className="auth-submit-btn"
         >
-          Volver a iniciar sesión
+          <span>Volver a iniciar sesión</span>
+          <ArrowRightIcon />
         </button>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-sm">
-      <h2 className="text-xl font-semibold text-talkapp-primary mb-1">Recuperar contraseña</h2>
-      <p className="text-sm text-talkapp-fg-muted">
-        Indica el email de tu cuenta y te enviaremos un enlace para restablecer la contraseña.
-      </p>
+    <form onSubmit={handleSubmit} className="auth-form">
+      <div className="auth-form-header">
+        <h2 className="auth-form-title">Recuperar contraseña</h2>
+        <p className="auth-form-subtitle">Te enviaremos un enlace de restablecimiento</p>
+      </div>
+
       {error && (
-        <div
-          className="text-sm text-red-400 bg-red-900/30 border border-red-500/50 rounded-lg px-3 py-2"
-          role="alert"
-        >
+        <div className="auth-error-banner" role="alert">
+          <span className="auth-error-icon">⚠️</span>
           {error}
         </div>
       )}
-      <label className="flex flex-col gap-1">
-        <span className="text-sm text-talkapp-fg-muted">Email</span>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-          className="rounded-xl bg-talkapp-panel border border-talkapp-border px-4 py-2.5 text-talkapp-fg placeholder-talkapp-fg-muted focus:outline-none focus:ring-2 focus:ring-talkapp-primary/50 focus:border-talkapp-primary"
-          placeholder="tu@email.com"
-        />
-      </label>
+
+      <div className="auth-fields">
+        <div className="auth-field">
+          <label className="auth-field-label" htmlFor="forgot-email">
+            Correo electrónico
+          </label>
+          <div className="auth-input-wrap">
+            <span className="auth-input-icon">
+              <EmailIcon />
+            </span>
+            <input
+              id="forgot-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              className="auth-input auth-input-with-icon"
+              placeholder="nombre@ejemplo.com"
+            />
+          </div>
+        </div>
+      </div>
+
       <button
         type="submit"
         disabled={loading}
-        className="mt-2 rounded-xl bg-talkapp-primary text-talkapp-on-primary font-semibold py-2.5 hover:bg-talkapp-accent focus:outline-none focus:ring-2 focus:ring-talkapp-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="auth-submit-btn"
       >
-        {loading ? 'Enviando…' : 'Enviar enlace'}
+        {loading ? (
+          <span className="auth-spinner" />
+        ) : (
+          <>
+            <span>Enviar enlace</span>
+            <ArrowRightIcon />
+          </>
+        )}
       </button>
-      <p className="text-sm text-talkapp-fg-muted text-center mt-2">
+
+      <p className="auth-switch-text">
         <button
           type="button"
           onClick={onBackToLogin}
-          className="text-talkapp-primary hover:underline"
+          className="auth-switch-link"
         >
-          Volver a iniciar sesión
+          ← Volver a iniciar sesión
         </button>
       </p>
     </form>
+  )
+}
+
+function EmailIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+      <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.221a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
+      <path d="m19 8.839-7.77 3.885a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
+    </svg>
+  )
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+      <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
+    </svg>
   )
 }

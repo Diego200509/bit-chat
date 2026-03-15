@@ -7,6 +7,14 @@ import { ResetPasswordForm } from './ResetPasswordForm'
 
 type AuthView = 'login' | 'register' | 'forgot' | 'reset'
 
+function FloatingOrb({ className }: { className?: string }) {
+  return (
+    <div
+      className={`absolute rounded-full blur-3xl opacity-20 pointer-events-none ${className}`}
+    />
+  )
+}
+
 export function AuthScreen() {
   const { login, register, error, clearError } = useAuth()
   const [view, setView] = useState<AuthView>('login')
@@ -31,35 +39,77 @@ export function AuthScreen() {
   }
 
   return (
-    <div className="flex min-h-screen min-h-dvh flex-col items-center bg-talkapp-bg p-4 pt-8 sm:pt-12 safe-t safe-b safe-l safe-r">
-      <div className="flex flex-col items-center gap-0 w-full max-w-sm">
-        <img src="/img/Talk-app_sin-fondo.png" alt="TalkApp" className="h-28 w-auto sm:h-40 md:h-44 block" />
-        <div className="w-full rounded-2xl border border-talkapp-border bg-talkapp-panel p-4 sm:p-6">
-          {view === 'login' && (
-            <LoginForm
-              onSubmit={login}
-              onSwitchToRegister={() => setView('register')}
-              onSwitchToForgot={() => setView('forgot')}
-              error={error}
-              clearError={clearError}
-            />
-          )}
-          {view === 'register' && (
-            <RegisterForm
-              onSubmit={register}
-              onSwitchToLogin={() => setView('login')}
-              error={error}
-              clearError={clearError}
-            />
-          )}
-          {view === 'forgot' && (
-            <ForgotPasswordForm onBackToLogin={goToLogin} />
-          )}
-          {view === 'reset' && resetToken && (
-            <ResetPasswordForm token={resetToken} onSuccess={goToLogin} />
-          )}
+    <div className="auth-screen-root">
+      {/* Fondo decorativo con orbs */}
+      <FloatingOrb className="auth-orb auth-orb-1" />
+      <FloatingOrb className="auth-orb auth-orb-2" />
+      <FloatingOrb className="auth-orb auth-orb-3" />
+
+      {/* Grid pattern overlay */}
+      <div className="auth-grid-overlay" />
+
+      {/* Layout: izquierda branding | derecha formulario */}
+      <div className="auth-layout">
+        {/* Panel izquierdo — solo visible en desktop */}
+        <div className="auth-branding-panel">
+          <div className="auth-branding-content auth-branding-centered">
+            <div className="auth-logo-wrap">
+              <img
+                src="/img/Talk-app_sin-fondo.png"
+                alt="TalkApp"
+                className="auth-logo-img"
+              />
+            </div>
+            <h1 className="auth-brand-title">TalkApp</h1>
+            <p className="auth-brand-tagline">
+              Conecta. Habla. Colabora.
+            </p>
+          </div>
+        </div>
+
+        {/* Panel derecho — formulario */}
+        <div className="auth-form-panel">
+          <div className="auth-form-container">
+            {/* Logo móvil */}
+            <div className="auth-mobile-logo">
+              <img
+                src="/img/Talk-app_sin-fondo.png"
+                alt="TalkApp"
+                className="auth-mobile-logo-img"
+              />
+              <span className="auth-mobile-brand">TalkApp</span>
+            </div>
+
+            <div className="auth-card">
+              {view === 'login' && (
+                <LoginForm
+                  onSubmit={login}
+                  onSwitchToRegister={() => setView('register')}
+                  onSwitchToForgot={() => setView('forgot')}
+                  error={error}
+                  clearError={clearError}
+                />
+              )}
+              {view === 'register' && (
+                <RegisterForm
+                  onSubmit={register}
+                  onSwitchToLogin={() => setView('login')}
+                  error={error}
+                  clearError={clearError}
+                />
+              )}
+              {view === 'forgot' && (
+                <ForgotPasswordForm onBackToLogin={goToLogin} />
+              )}
+              {view === 'reset' && resetToken && (
+                <ResetPasswordForm token={resetToken} onSuccess={goToLogin} />
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
 }
+
+

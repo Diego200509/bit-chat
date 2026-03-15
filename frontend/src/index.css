@@ -1,29 +1,29 @@
 @import "tailwindcss";
 
-/* Tema TalkApp: morado principal #7B2CBF, morado claro #C77DFF, fondos gris #F5F5F5 */
+/* Tema TalkApp v2: índigo profundo + morado */
 @theme {
-  /* Fondos modo oscuro */
-  --color-talkapp-bg: #0a0a0a;
-  --color-talkapp-sidebar: #0f0f0f;
-  --color-talkapp-panel: #141414;
-  /* Morado principal (acentos, botones, enlaces) */
+  /* Fondos modo oscuro — índigo-slate profundo */
+  --color-talkapp-bg: #0d0f14;
+  --color-talkapp-sidebar: #11141c;
+  --color-talkapp-panel: #181c27;
+  /* Morado principal */
   --color-talkapp-primary: #7B2CBF;
   --color-talkapp-primary-bright: #9b4ddf;
-  /* Morado claro (destacados, hover) */
+  /* Morado claro */
   --color-talkapp-accent: #C77DFF;
   --color-talkapp-accent-soft: #e0b3ff;
-  /* Texto sobre fondos morados (botones, badges) */
+  /* Texto sobre fondos morados */
   --color-talkapp-on-primary: #ffffff;
-  /* Bordes */
-  --color-talkapp-border: #2d2d2d;
+  /* Bordes — azulados sutiles */
+  --color-talkapp-border: #252a38;
   /* Texto */
-  --color-talkapp-fg: #f5f5f5;
-  --color-talkapp-fg-muted: #a3a3a3;
-  /* Burbujas: enviados (morado) vs recibidos */
-  --color-talkapp-sent: #6b21a8;
-  --color-talkapp-received: #262626;
-  --color-talkapp-received-fg: #e5e5e5;
-  --color-talkapp-received-muted: #a3a3a3;
+  --color-talkapp-fg: #e8eaf0;
+  --color-talkapp-fg-muted: #8b92a8;
+  /* Burbujas */
+  --color-talkapp-sent: #5b21a8;
+  --color-talkapp-received: #1e2235;
+  --color-talkapp-received-fg: #dde0ec;
+  --color-talkapp-received-muted: #8b92a8;
 }
 
 body {
@@ -39,8 +39,8 @@ body {
 
 /* Tema claro */
 [data-theme="light"] {
-  --color-talkapp-bg: #F5F5F5;
-  --color-talkapp-sidebar: #e5e5e5;
+  --color-talkapp-bg: #f0f2f8;
+  --color-talkapp-sidebar: #e4e8f4;
   --color-talkapp-panel: #ffffff;
   --color-talkapp-border: #d4d4d4;
   --color-talkapp-received: #e5e5e5;
@@ -114,3 +114,970 @@ textarea::placeholder {
 .animate-toast-in {
   animation: toast-in 0.25s ease-out;
 }
+
+/* =====================================================
+   AUTH SCREEN — Nuevo diseño
+   ===================================================== */
+
+/* ---- Raíz ---- */
+.auth-screen-root {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: #060608;
+  display: flex;
+  align-items: stretch;
+}
+
+[data-theme="light"] .auth-screen-root {
+  background: #f0f0f8;
+}
+
+/* ---- Orbs decorativos ---- */
+.auth-orb {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.auth-orb-1 {
+  width: 520px;
+  height: 520px;
+  background: #7B2CBF;
+  top: -180px;
+  left: -100px;
+  filter: blur(100px);
+  opacity: 0.18;
+  animation: orb-float 8s ease-in-out infinite;
+}
+
+.auth-orb-2 {
+  width: 350px;
+  height: 350px;
+  background: #C77DFF;
+  bottom: -80px;
+  left: 25%;
+  filter: blur(90px);
+  opacity: 0.12;
+  animation: orb-float 10s ease-in-out infinite reverse;
+}
+
+.auth-orb-3 {
+  width: 280px;
+  height: 280px;
+  background: #9b4ddf;
+  top: 40%;
+  right: 5%;
+  filter: blur(80px);
+  opacity: 0.13;
+  animation: orb-float 12s ease-in-out infinite;
+}
+
+[data-theme="light"] .auth-orb-1 { opacity: 0.10; }
+[data-theme="light"] .auth-orb-2 { opacity: 0.08; }
+[data-theme="light"] .auth-orb-3 { opacity: 0.09; }
+
+@keyframes orb-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-24px) scale(1.04); }
+}
+
+/* ---- Grid overlay ---- */
+.auth-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(123, 44, 191, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(123, 44, 191, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+[data-theme="light"] .auth-grid-overlay {
+  background-image:
+    linear-gradient(rgba(123, 44, 191, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(123, 44, 191, 0.06) 1px, transparent 1px);
+}
+
+/* ---- Layout principal ---- */
+.auth-layout {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ================================================
+   PANEL IZQUIERDO — Branding (solo desktop)
+   ================================================ */
+.auth-branding-panel {
+  display: none;
+  position: relative;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem 3.5rem;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .auth-branding-panel {
+    display: flex;
+    flex: 1;
+    max-width: 520px;
+  }
+}
+
+/* Fondo del panel izquierdo */
+.auth-branding-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(123, 44, 191, 0.22) 0%, rgba(155, 77, 223, 0.10) 60%, transparent 100%);
+  border-right: 1px solid rgba(123, 44, 191, 0.18);
+}
+
+[data-theme="light"] .auth-branding-panel::before {
+  background: linear-gradient(135deg, rgba(123, 44, 191, 0.10) 0%, rgba(199, 125, 255, 0.06) 60%, transparent 100%);
+  border-right-color: rgba(123, 44, 191, 0.12);
+}
+
+.auth-branding-content {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-branding-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.auth-logo-wrap {
+  margin-bottom: 1.5rem;
+}
+
+.auth-logo-img {
+  height: 120px;
+  width: auto;
+  filter: drop-shadow(0 0 36px rgba(123, 44, 191, 0.7));
+}
+
+.auth-brand-title {
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #C77DFF 0%, #9b4ddf 50%, #7B2CBF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 0.5rem;
+  line-height: 1.1;
+}
+
+.auth-brand-tagline {
+  font-size: 1.3rem;
+  color: #a3a3a3;
+  margin: 0;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="light"] .auth-brand-tagline {
+  color: #525252;
+}
+
+/* ---- Features list ---- */
+.auth-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.auth-feature-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(123, 44, 191, 0.18);
+  border: 1px solid rgba(123, 44, 191, 0.25);
+  border-radius: 10px;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .auth-feature-icon {
+  background: rgba(123, 44, 191, 0.10);
+  border-color: rgba(123, 44, 191, 0.18);
+}
+
+.auth-feature-text {
+  font-size: 0.9rem;
+  color: #d4d4d4;
+  font-weight: 500;
+}
+
+[data-theme="light"] .auth-feature-text {
+  color: #404040;
+}
+
+/* ---- Tarjetas flotantes decorativas ---- */
+.auth-floating-card {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.75);
+  border: 1px solid rgba(123, 44, 191, 0.3);
+  backdrop-filter: blur(12px);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #d4d4d4;
+  z-index: 2;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+
+[data-theme="light"] .auth-floating-card {
+  background: rgba(240, 240, 248, 0.85);
+  border-color: rgba(123, 44, 191, 0.2);
+  color: #404040;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+}
+
+.auth-floating-card-1 {
+  bottom: 22%;
+  right: 2rem;
+  animation: card-float 6s ease-in-out infinite;
+}
+
+.auth-floating-card-2 {
+  bottom: 31%;
+  right: 6rem;
+  animation: card-float 7s ease-in-out infinite reverse;
+}
+
+@keyframes card-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.auth-floating-card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.auth-dot-green {
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.auth-floating-card-label {
+  white-space: nowrap;
+}
+
+.auth-floating-icon {
+  font-size: 0.9rem;
+}
+
+/* ================================================
+   PANEL DERECHO — Formulario
+   ================================================ */
+.auth-form-panel {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+  padding-top: env(safe-area-inset-top, 2rem);
+  padding-bottom: env(safe-area-inset-bottom, 2rem);
+}
+
+.auth-form-container {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ---- Logo móvil ---- */
+.auth-mobile-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+@media (min-width: 1024px) {
+  .auth-mobile-logo {
+    display: none;
+  }
+}
+
+.auth-mobile-logo-img {
+  height: 44px;
+  width: auto;
+  filter: drop-shadow(0 0 16px rgba(123, 44, 191, 0.5));
+}
+
+.auth-mobile-brand {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #C77DFF 0%, #7B2CBF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ---- Card del formulario ---- */
+.auth-card {
+  background: rgba(14, 14, 18, 0.85);
+  border: 1px solid rgba(123, 44, 191, 0.2);
+  border-radius: 20px;
+  padding: 2rem 1.75rem;
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 0 0 1px rgba(123, 44, 191, 0.08),
+    0 24px 48px rgba(0, 0, 0, 0.4),
+    0 0 80px rgba(123, 44, 191, 0.06);
+}
+
+[data-theme="light"] .auth-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(123, 44, 191, 0.15);
+  box-shadow:
+    0 0 0 1px rgba(123, 44, 191, 0.06),
+    0 24px 48px rgba(0, 0, 0, 0.10),
+    0 0 80px rgba(123, 44, 191, 0.04);
+}
+
+/* ================================================
+   FORMULARIO DE LOGIN
+   ================================================ */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.auth-form-header {
+  margin-bottom: 0.25rem;
+}
+
+.auth-form-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f0f0f0;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.25rem;
+}
+
+[data-theme="light"] .auth-form-title {
+  color: #171717;
+}
+
+.auth-form-subtitle {
+  font-size: 0.875rem;
+  color: #737373;
+  margin: 0;
+}
+
+[data-theme="light"] .auth-form-subtitle {
+  color: #525252;
+}
+
+/* ---- Error banner ---- */
+.auth-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  padding: 0.625rem 0.875rem;
+  animation: error-in 0.2s ease-out;
+}
+
+[data-theme="light"] .auth-error-banner {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+@keyframes error-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-error-icon {
+  flex-shrink: 0;
+}
+
+/* ---- Campos ---- */
+.auth-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.auth-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.auth-field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #a3a3a3;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+[data-theme="light"] .auth-field-label {
+  color: #525252;
+}
+
+.auth-forgot-link {
+  font-size: 0.78rem;
+  color: #7B2CBF;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.auth-forgot-link:hover {
+  color: #C77DFF;
+}
+
+/* ---- Input wrapper ---- */
+.auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-input-icon {
+  position: absolute;
+  left: 0.875rem;
+  color: #525252;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  transition: color 0.15s;
+}
+
+[data-theme="light"] .auth-input-icon {
+  color: #737373;
+}
+
+.auth-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: #f0f0f0;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .auth-input {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #171717;
+}
+
+.auth-input::placeholder {
+  color: #404040;
+}
+
+[data-theme="light"] .auth-input::placeholder {
+  color: #a3a3a3;
+}
+
+.auth-input-with-icon {
+  padding-left: 2.5rem;
+}
+
+.auth-input-with-toggle {
+  padding-right: 2.75rem;
+}
+
+.auth-input:focus {
+  border-color: rgba(123, 44, 191, 0.6);
+  background: rgba(123, 44, 191, 0.06);
+  box-shadow: 0 0 0 3px rgba(123, 44, 191, 0.12);
+}
+
+[data-theme="light"] .auth-input:focus {
+  background: rgba(123, 44, 191, 0.04);
+  box-shadow: 0 0 0 3px rgba(123, 44, 191, 0.10);
+}
+
+.auth-input:focus + .auth-input-icon,
+.auth-input-wrap:focus-within .auth-input-icon {
+  color: #9b4ddf;
+}
+
+/* ---- Toggle contraseña ---- */
+.auth-toggle-pw {
+  position: absolute;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  color: #525252;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  transition: color 0.15s;
+}
+
+.auth-toggle-pw:hover {
+  color: #9b4ddf;
+}
+
+[data-theme="light"] .auth-toggle-pw {
+  color: #737373;
+}
+
+/* ---- Botón de submit ---- */
+.auth-submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.8rem 1.5rem;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #7B2CBF 0%, #9b4ddf 100%);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 20px rgba(123, 44, 191, 0.4);
+  letter-spacing: 0.01em;
+  margin-top: 0.25rem;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 28px rgba(123, 44, 191, 0.5);
+}
+
+.auth-submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Spinner ---- */
+.auth-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: auth-spin 0.6s linear infinite;
+}
+
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Enlace para cambiar entre login/registro ---- */
+.auth-switch-text {
+  font-size: 0.85rem;
+  color: #737373;
+  text-align: center;
+  margin: 0;
+}
+
+[data-theme="light"] .auth-switch-text {
+  color: #525252;
+}
+
+.auth-switch-link {
+  color: #9b4ddf;
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.auth-switch-link:hover {
+  color: #C77DFF;
+  text-decoration: underline;
+}
+
+/* ---- Hint en labels ---- */
+.auth-field-hint {
+  font-size: 0.72rem;
+  color: #525252;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+[data-theme="light"] .auth-field-hint {
+  color: #737373;
+}
+
+/* ---- Pantalla de confirmación (forgot password enviado) ---- */
+.auth-sent-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(123, 44, 191, 0.08);
+  border: 1px solid rgba(123, 44, 191, 0.2);
+  border-radius: 12px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+
+[data-theme="light"] .auth-sent-notice {
+  background: rgba(123, 44, 191, 0.05);
+  border-color: rgba(123, 44, 191, 0.15);
+}
+
+.auth-sent-icon {
+  font-size: 2rem;
+}
+
+.auth-sent-text {
+  font-size: 0.875rem;
+  color: #a3a3a3;
+  margin: 0;
+  line-height: 1.5;
+}
+
+[data-theme="light"] .auth-sent-text {
+  color: #525252;
+}
+
+/* =====================================================
+   CHAT UI — Nuevo diseño (con soporte completo light/dark)
+   ===================================================== */
+
+/* ---- Sidebar / bandeja de conversaciones ---- */
+aside.flex {
+  background: var(--color-talkapp-sidebar);
+  border-right: 1px solid var(--color-talkapp-border);
+}
+
+/* Header de la bandeja izquierda */
+aside header {
+  background: var(--color-talkapp-sidebar);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-talkapp-border);
+  box-shadow: 0 1px 0 rgba(123, 44, 191, 0.08);
+}
+
+[data-theme="light"] aside header {
+  background: #ffffff;
+  border-bottom: 1px solid rgba(123, 44, 191, 0.12);
+  box-shadow: 0 1px 12px rgba(123, 44, 191, 0.06);
+}
+
+/* Modo claro: sidebar color lavanda muy suave */
+[data-theme="light"] aside.flex {
+  background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+  border-right: 1px solid #ddd6fe;
+}
+
+/* Items de conversación */
+aside li button[type="button"] {
+  border-radius: 10px;
+  margin: 0 4px;
+  transition: background 0.15s, transform 0.1s;
+}
+
+aside li button[type="button"]:hover {
+  background: rgba(123, 44, 191, 0.08) !important;
+  transform: translateX(2px);
+}
+
+[data-theme="light"] aside li button[type="button"]:hover {
+  background: rgba(109, 40, 217, 0.10) !important;
+}
+
+/* Item activo */
+aside li button[type="button"].bg-talkapp-panel {
+  background: rgba(123, 44, 191, 0.12) !important;
+  border-left: 2px solid #7B2CBF;
+  box-shadow: inset 0 0 0 1px rgba(123, 44, 191, 0.12);
+}
+
+[data-theme="light"] aside li button[type="button"].bg-talkapp-panel {
+  background: rgba(109, 40, 217, 0.12) !important;
+  border-left: 2px solid #6d28d9;
+  box-shadow: inset 0 0 0 1px rgba(109, 40, 217, 0.12);
+}
+
+/* Avatar en sidebar */
+aside li .w-12 {
+  background: var(--color-talkapp-primary) !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+
+/* Divisores entre conversaciones */
+aside ul.divide-y > li {
+  border-color: var(--color-talkapp-border);
+}
+
+/* Badge de no leídos */
+aside span.rounded-full.bg-talkapp-primary {
+  background: linear-gradient(135deg, #9b4ddf, #7B2CBF) !important;
+  box-shadow: 0 2px 8px rgba(123, 44, 191, 0.35);
+}
+
+/* Texto en sidebar en modo claro */
+[data-theme="light"] aside li button[type="button"] p,
+[data-theme="light"] aside li button[type="button"] span {
+  color: #3b1e6e;
+}
+
+[data-theme="light"] aside li button[type="button"] .text-talkapp-fg-muted {
+  color: #6b5a8e;
+}
+
+/* ---- Header del chat (derecho) ---- */
+main header {
+  background: var(--color-talkapp-panel) !important;
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--color-talkapp-border) !important;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] main header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e0d7f7 !important;
+  box-shadow: 0 2px 12px rgba(123, 44, 191, 0.08);
+}
+
+/* Avatar en header del chat */
+main header .rounded-full {
+  background: var(--color-talkapp-primary) !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+
+/* ---- Fondo del área de mensajes ---- */
+main > div.flex-1.overflow-y-auto,
+main div[class*="chat-messages-scroll"] {
+  background-color: var(--color-talkapp-bg);
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(123, 44, 191, 0.05) 0%, transparent 60%),
+    radial-gradient(rgba(37, 42, 56, 0.35) 1px, transparent 1px);
+  background-size: 100% 100%, 28px 28px;
+}
+
+[data-theme="light"] main > div.flex-1.overflow-y-auto,
+[data-theme="light"] main div[class*="chat-messages-scroll"] {
+  background-color: #f5f3ff;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(109, 40, 217, 0.06) 0%, transparent 60%),
+    radial-gradient(rgba(109, 40, 217, 0.07) 1px, transparent 1px);
+  background-size: 100% 100%, 28px 28px;
+}
+
+/* ---- App layout wrapper ---- */
+.min-h-screen.bg-talkapp-bg {
+  background: var(--color-talkapp-bg) !important;
+}
+
+/* Borde exterior del contenedor principal del chat */
+.rounded-lg.border.border-talkapp-border {
+  border-color: var(--color-talkapp-border) !important;
+  box-shadow:
+    0 0 0 1px rgba(123, 44, 191, 0.05),
+    0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .rounded-lg.border.border-talkapp-border {
+  border-color: #ddd6fe !important;
+  box-shadow:
+    0 0 0 1px rgba(109, 40, 217, 0.06),
+    0 8px 32px rgba(109, 40, 217, 0.10);
+}
+
+/* ---- Scrollbar del chat ---- */
+.chat-messages-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(123, 44, 191, 0.3) transparent;
+}
+
+.chat-messages-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.chat-messages-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-messages-scroll::-webkit-scrollbar-thumb {
+  background: rgba(123, 44, 191, 0.3);
+  border-radius: 9999px;
+}
+
+.chat-messages-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(123, 44, 191, 0.5);
+}
+
+/* ---- Input de mensajes ---- */
+main footer,
+main > div > div[class*="border-t"] {
+  background: var(--color-talkapp-panel) !important;
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--color-talkapp-border) !important;
+  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] main footer,
+[data-theme="light"] main > div > div[class*="border-t"] {
+  background: #ffffff !important;
+  border-top: 1px solid #e0d7f7 !important;
+  box-shadow: 0 -2px 12px rgba(109, 40, 217, 0.06);
+}
+
+/* Textarea del input */
+main textarea,
+main input[type="text"] {
+  background: var(--color-talkapp-received) !important;
+  border: 1px solid var(--color-talkapp-border) !important;
+  border-radius: 14px !important;
+  color: var(--color-talkapp-fg) !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+main textarea:focus,
+main input[type="text"]:focus {
+  border-color: rgba(123, 44, 191, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(123, 44, 191, 0.10) !important;
+  outline: none !important;
+}
+
+[data-theme="light"] main textarea,
+[data-theme="light"] main input[type="text"] {
+  background: #ede9fe !important;
+  border-color: #ddd6fe !important;
+  color: #3b1e6e !important;
+}
+
+[data-theme="light"] main textarea::placeholder,
+[data-theme="light"] main input[type="text"]::placeholder {
+  color: #8b6aae !important;
+}
+
+/* Botón de enviar/micrófono */
+main button[type="submit"],
+main button[aria-label*="enviar"],
+main button[aria-label*="grabar"],
+main button[aria-label*="Enviar"],
+main button[aria-label*="Grabar"] {
+  background: linear-gradient(135deg, #7B2CBF, #5b21a8) !important;
+  box-shadow: 0 4px 14px rgba(123, 44, 191, 0.4) !important;
+  border-radius: 50% !important;
+  transition: transform 0.15s, box-shadow 0.15s !important;
+}
+
+main button[type="submit"]:hover,
+main button[aria-label*="enviar"]:hover,
+main button[aria-label*="grabar"]:hover,
+main button[aria-label*="Enviar"]:hover,
+main button[aria-label*="Grabar"]:hover {
+  transform: scale(1.06) !important;
+  box-shadow: 0 6px 18px rgba(123, 44, 191, 0.5) !important;
+}
+
+/* ---- Dropdowns / menús contextuales ---- */
+.fixed.z-\[100\] {
+  background: var(--color-talkapp-sidebar) !important;
+  border: 1px solid var(--color-talkapp-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(123, 44, 191, 0.08) !important;
+  overflow: hidden;
+}
+
+[data-theme="light"] .fixed.z-\[100\] {
+  background: #ffffff !important;
+  border-color: #e0d7f7 !important;
+  box-shadow: 0 8px 24px rgba(109, 40, 217, 0.12) !important;
+}
+
+/* Items del dropdown */
+.fixed.z-\[100\] button {
+  border-radius: 0;
+  transition: background 0.12s !important;
+}
+
+.fixed.z-\[100\] button:hover {
+  background: rgba(123, 44, 191, 0.10) !important;
+}
+
+[data-theme="light"] .fixed.z-\[100\] button:hover {
+  background: rgba(109, 40, 217, 0.08) !important;
+}
+
+/* ---- Pantalla vacía (sin conversación seleccionada) ---- */
+main .flex.flex-1.flex-col.items-center.justify-center {
+  background: var(--color-talkapp-bg) !important;
+}
+
+[data-theme="light"] main .flex.flex-1.flex-col.items-center.justify-center {
+  background: #f5f3ff !important;
+}
+
+main .rounded-full.bg-talkapp-primary\/20 {
+  background: rgba(123, 44, 191, 0.12) !important;
+  border: 1px solid rgba(123, 44, 191, 0.2);
+  box-shadow: 0 0 24px rgba(123, 44, 191, 0.1);
+}
+
