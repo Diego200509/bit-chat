@@ -327,8 +327,8 @@ export function Message({ message, currentUserId, showSenderName = false, onDele
     const text = deletedByMe ? 'Eliminaste este mensaje.' : 'Este mensaje fue eliminado.'
     const alignRight = deletedByMe
     const bubbleClass = alignRight
-      ? 'rounded-br-md bg-talkapp-primary text-talkapp-on-primary'
-      : 'rounded-bl-md bg-talkapp-received text-talkapp-received-fg'
+      ? 'rounded-tr-[4px] bg-talkapp-primary text-talkapp-on-primary'
+      : 'rounded-tl-[4px] bg-talkapp-received text-talkapp-received-fg'
     const mutedClass = alignRight ? 'text-talkapp-on-primary/70' : 'text-talkapp-received-muted'
     const showNameDeleted = showSenderName && !deletedByMe && (message.senderName?.trim() ?? '')
     return (
@@ -340,11 +340,7 @@ export function Message({ message, currentUserId, showSenderName = false, onDele
               {message.senderName}
             </p>
           )}
-          <div className={`rounded-[18px] px-4 py-2.5 max-w-full ${
-            alignRight
-              ? 'rounded-tr-[4px] bg-talkapp-primary text-talkapp-on-primary'
-              : 'rounded-tl-[4px] bg-talkapp-received text-talkapp-received-fg'
-          }`}>
+          <div className={`rounded-[18px] px-4 py-2.5 max-w-full ${bubbleClass}`}>
             <div className="flex items-start gap-2">
               <span className={`flex-shrink-0 ${mutedClass}`} aria-hidden>
                 <DeletedMessageIcon />

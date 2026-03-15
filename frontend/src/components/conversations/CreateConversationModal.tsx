@@ -78,8 +78,8 @@ export function CreateConversationModal({ onClose, onCreate }: CreateConversatio
             <CloseIcon />
           </button>
         </header>
-        <form onSubmit={handleSubmit} className="flex flex-col p-4 gap-4 min-h-0 overflow-y-auto">
-
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 p-4">
+          <div className="chat-messages-scroll flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 pr-1">
           {/* Imagen centrada y prominente primero */}
           <div className="flex flex-col items-center gap-2 pt-1">
             <button
@@ -128,7 +128,7 @@ export function CreateConversationModal({ onClose, onCreate }: CreateConversatio
           {/* Participantes */}
           <div>
             <label className="block text-sm text-talkapp-fg-muted mb-2">Participantes</label>
-            <div className="chat-messages-scroll max-h-48 overflow-y-auto rounded-lg border border-talkapp-border bg-talkapp-panel divide-y divide-talkapp-border">
+            <div className="chat-messages-scroll max-h-52 overflow-y-auto rounded-lg border border-talkapp-border bg-talkapp-panel divide-y divide-talkapp-border">
               {friends.length === 0 ? (
                 <p className="p-3 text-talkapp-fg-muted text-sm">Sin contactos disponibles. Añade amigos primero.</p>
               ) : (
@@ -146,7 +146,9 @@ export function CreateConversationModal({ onClose, onCreate }: CreateConversatio
               )}
             </div>
           </div>
+          </div>
 
+          <div className="shrink-0 pt-4 flex flex-col gap-4 border-t border-talkapp-border mt-4 -mx-4 px-4">
           {error && <p className="text-sm text-red-400">{error}</p>}
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-talkapp-fg-muted hover:bg-talkapp-panel">
@@ -159,6 +161,7 @@ export function CreateConversationModal({ onClose, onCreate }: CreateConversatio
             >
               {loading ? 'Creando grupo…' : 'Crear grupo'}
             </button>
+          </div>
           </div>
         </form>
       </div>

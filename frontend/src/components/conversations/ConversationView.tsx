@@ -97,15 +97,13 @@ function getConversationHeaderSubtitle(
   }
   if (conversation.participants && conversation.participants.length > 0) {
     if (conversation.isRemovedFromGroup) return 'No puedes escribir en este grupo'
+    const total = conversation.participants.length
     const inConvSet = new Set(usersInCurrentConversation)
     const onlineInGroup = conversation.participants.filter(
       (p) => p.id !== currentUserId && inConvSet.has(p.id)
     )
-    if (onlineInGroup.length === 0) return 'Nadie en línea'
-    if (onlineInGroup.length <= 3) {
-      return `${onlineInGroup.map((p) => p.name).join(', ')} en línea`
-    }
-    return `${onlineInGroup.length} en línea`
+    const membersLabel = total === 1 ? '1 miembro' : `${total} miembros`
+    return `${membersLabel} · ${onlineInGroup.length} en línea`
   }
   return 'TalkApp'
 }

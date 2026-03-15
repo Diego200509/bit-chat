@@ -86,7 +86,8 @@ export function EditProfileModal({
             <CloseIcon />
           </button>
         </header>
-        <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-4 min-h-0 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 p-4">
+          <div className="chat-messages-scroll flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 pr-1">
           {/* Avatar centrado con nombre debajo */}
           <div className="flex flex-col items-center gap-2 py-2">
             <button
@@ -160,8 +161,9 @@ export function EditProfileModal({
             </select>
             <p className="text-xs text-talkapp-fg-muted mt-0.5">Ej. Disponible, Ocupado, En una reunión</p>
           </div>
+          </div>
 
-          <div className="flex gap-2 justify-end">
+          <div className="shrink-0 flex gap-2 justify-end pt-2 border-t border-talkapp-border -mx-4 px-4">
             <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-talkapp-fg-muted hover:bg-talkapp-panel">
               Descartar
             </button>
