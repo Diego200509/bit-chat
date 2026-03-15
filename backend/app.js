@@ -19,10 +19,6 @@ app.get('/health', (_, res) => {
 });
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/stickers', (req, res, next) => {
-  res.setHeader('Content-Type', 'image/svg+xml');
-  next();
-}, express.static(path.join(__dirname, 'stickers')));
 app.use('/upload', uploadRoutes);
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
