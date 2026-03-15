@@ -676,7 +676,7 @@ function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated
             <CloseIcon className="h-5 w-5" />
           </button>
         </div>
-        <div className="max-h-[60vh] overflow-y-auto p-4">
+        <div className="chat-messages-scroll max-h-[60vh] overflow-y-auto p-4">
           <div className="mb-4 flex items-center gap-4">
             <button
               type="button"
@@ -781,7 +781,7 @@ function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated
               ) : contacts.length === 0 ? (
                 <p className="py-2 text-sm text-talkapp-fg-muted">No hay contactos disponibles para añadir.</p>
               ) : (
-                <ul className="max-h-40 overflow-y-auto space-y-1">
+                <ul className="chat-messages-scroll max-h-40 overflow-y-auto space-y-1">
                   {contacts.map((c) => (
                     <li key={c.userId}>
                       <button

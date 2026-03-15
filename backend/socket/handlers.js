@@ -312,6 +312,12 @@ function registerSocketHandlers(io) {
         } else {
           io.to(roomName).emit(EVENTS.NEW_MESSAGE, message);
         }
+        if (conv?.participants?.length) {
+          const participantIds = [...new Set(conv.participants.map((p) => String(p && p.toString ? p.toString() : p)))];
+          for (const uid of participantIds) {
+            io.to(`user:${uid}`).emit(EVENTS.CONVERSATION_UPDATED, { conversationId: chatId });
+          }
+        }
         if (saved && saved.id && opts.type === 'text' && opts.text && opts.text.trim()) {
           setImmediate(() => {
             fetchAndAttachLinkPreview(saved.id)

@@ -43,6 +43,10 @@ router.post('/direct', async (req, res) => {
     const populated = await Conversation.findById(conv._id).populate('participants', 'name nickname avatar').lean();
     const other = populated?.participants?.find((p) => p._id.toString() !== req.userId);
     const displayName = other ? (other.nickname?.trim() || other.name) : 'Usuario';
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${otherUserId}`).emit(EVENTS.CONVERSATION_UPDATED, { conversationId: conv._id.toString() });
+    }
     return res.json({
       id: conv._id.toString(),
       name: displayName,
@@ -60,6 +64,13 @@ router.post('/group', async (req, res) => {
     const { name, image, participantIds } = req.body || {};
     const ids = Array.isArray(participantIds) ? participantIds.filter((id) => id && id !== req.userId) : [];
     const conv = await createGroupConversation(req.userId, name || 'Grupo', ids, image || null);
+    const io = req.app.get('io');
+    if (io && conv.participants?.length) {
+      const participantIdsNorm = [...new Set(conv.participants.map((p) => String(p && p.toString ? p.toString() : p)))];
+      for (const uid of participantIdsNorm) {
+        io.to(`user:${uid}`).emit(EVENTS.CONVERSATION_UPDATED, { conversationId: conv._id.toString() });
+      }
+    }
     return res.status(201).json({
       id: conv._id.toString(),
       name: conv.name || 'Grupo',
