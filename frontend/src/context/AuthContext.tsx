@@ -6,12 +6,11 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { SOCKET_EVENTS } from '../constants/socket'
 import { socket } from '../lib/socket'
 import * as api from '../lib/api'
 
 
-const STORAGE_KEY = 'bitchat_auth'
+const STORAGE_KEY = 'talkapp_auth'
 
 interface StoredAuth {
   token: string
@@ -25,7 +24,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
-  updateProfile: (updates: { nickname?: string | null; avatar?: string | null; visibility?: 'visible' | 'invisible' }) => Promise<void>
+  updateProfile: (updates: { nickname?: string | null; avatar?: string | null; status?: string | null }) => Promise<void>
   error: string | null
   clearError: () => void
 }
@@ -130,14 +129,20 @@ saveStored(auth)
     []
   )
 
-  const logout = useCallback(() => {
-    saveStored(null)
-    api.setAuthToken(null)
-    setToken(null)
-    setUser(null)
+  const logout = useCallback(async () => {
+    try {
+      await api.logout()
+    } catch {
+      // Si el servidor no responde, cerramos sesión igual en el cliente
+    } finally {
+      saveStored(null)
+      api.setAuthToken(null)
+      setToken(null)
+      setUser(null)
+    }
   }, [])
 
-  const updateProfile = useCallback(async (updates: { nickname?: string | null; avatar?: string | null; visibility?: 'visible' | 'invisible' }) => {
+  const updateProfile = useCallback(async (updates: { nickname?: string | null; avatar?: string | null; status?: string | null }) => {
     if (!user) return
     const updated = await api.updateMe(updates)
     const nextUser: api.AuthUser = {
@@ -145,13 +150,10 @@ saveStored(auth)
       name: updated.name ?? user.name,
       nickname: 'nickname' in updated ? updated.nickname : user.nickname,
       avatar: updated.avatar ?? user.avatar,
-      visibility: updated.visibility ?? user.visibility,
+      status: 'status' in updated ? updated.status : user.status,
     }
     setUser(nextUser)
     saveStored({ token: token!, user: nextUser })
-    if (updates.visibility !== undefined) {
-      socket.emit(SOCKET_EVENTS.REFRESH_ONLINE_LIST)
-    }
   }, [user, token])
 
   const value: AuthContextValue = {

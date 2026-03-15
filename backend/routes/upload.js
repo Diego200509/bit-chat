@@ -21,11 +21,13 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = /^image\/(jpeg|png|gif|webp)$/i.test(file.mimetype);
-    if (allowed) cb(null, true);
-    else cb(new Error('Solo imágenes (jpeg, png, gif, webp) permitidas'));
+    const image = /^image\/(jpeg|png|gif|webp)$/i.test(file.mimetype);
+    const pdf = file.mimetype === 'application/pdf';
+    const audio = /^audio\/(mpeg|webm|ogg|mp4|wav|aac)$/i.test(file.mimetype);
+    if (image || pdf || audio) cb(null, true);
+    else cb(new Error('Solo imágenes, PDF o audio permitidos'));
   },
 });
 

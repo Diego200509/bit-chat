@@ -17,7 +17,7 @@ app.set('io', io);
 connectDb()
   .then(() => {
     server.listen(config.port, '0.0.0.0', () => {
-      console.log(`BitChat backend en http://localhost:${config.port}`);
+      console.log(`TalkApp · Servidor listo (puerto ${config.port})`);
     });
   })
   .catch((err) => {

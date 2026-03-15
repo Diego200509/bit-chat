@@ -1,14 +1,13 @@
 const EVENTS = require('../config/socket.events');
 const {
-  getOrCreateChat,
+  getOrCreateConversation,
   saveMessage,
   getMessageHistory,
-  toggleReaction,
-  editMessage,
-  markChatAsRead,
-  pinMessage,
-  unpinMessage,
-} = require('../services/chatService');
+  fetchAndAttachLinkPreview,
+  markConversationAsRead,
+  markMessageDelivered,
+  markAllConversationsDeliveredForUser,
+} = require('../services/conversationService');
 const { User } = require('../models');
 
 const connectedUsers = new Map();
@@ -17,19 +16,11 @@ const chatPresence = new Map();
 function emitChatPresence(io, chatId) {
   const set = chatPresence.get(chatId);
   const userIds = set ? Array.from(set) : [];
-  io.to(`chat:${chatId}`).emit(EVENTS.CHAT_PRESENCE, { chatId, userIds });
+  io.to(`chat:${chatId}`).emit(EVENTS.CONVERSATION_PRESENCE, { chatId, userIds });
 }
 
 async function getVisibleOnlineUsers() {
-  const list = Array.from(connectedUsers.values());
-  const userIds = [...new Set(list.map((u) => u.userId).filter(Boolean))];
-  if (userIds.length === 0) return list;
-  const mongoose = require('mongoose');
-  const users = await User.find({ _id: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) } })
-    .select('visibility')
-    .lean();
-  const visibilityByUserId = Object.fromEntries(users.map((u) => [u._id.toString(), u.visibility || 'visible']));
-  return list.filter((u) => !u.userId || visibilityByUserId[u.userId] === 'visible');
+  return Array.from(connectedUsers.values());
 }
 
 function generateMessageId() {
@@ -54,6 +45,16 @@ async function emitMessageToRoomExceptBlocking(io, roomName, message, senderId) 
   }
 }
 
+async function emitToRoomExceptRemoved(io, roomName, event, payload, removedParticipantIds) {
+  const removedSet = new Set((removedParticipantIds || []).map((id) => id.toString()));
+  const sockets = await io.in(roomName).fetchSockets();
+  for (const s of sockets) {
+    const uid = s.data.userId;
+    if (uid && removedSet.has(String(uid))) continue;
+    s.emit(event, payload);
+  }
+}
+
 function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log('Cliente conectado:', socket.id, socket.data.userId);
@@ -65,11 +66,22 @@ function registerSocketHandlers(io) {
     });
     getVisibleOnlineUsers().then((visible) => io.emit(EVENTS.USERS_ONLINE, visible));
 
+    if (userId) {
+      markAllConversationsDeliveredForUser(userId)
+        .then((payloads) => {
+          for (const payload of payloads) {
+            const roomName = payload.chatId ? `chat:${payload.chatId}` : null;
+            if (roomName) io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, payload);
+          }
+        })
+        .catch((err) => console.error('Error marking conversations delivered:', err));
+    }
+
     socket.on(EVENTS.REFRESH_ONLINE_LIST, () => {
       getVisibleOnlineUsers().then((visible) => io.emit(EVENTS.USERS_ONLINE, visible));
     });
 
-    socket.on(EVENTS.JOIN_CHAT, async (chatId) => {
+    socket.on(EVENTS.JOIN_CONVERSATION, async (chatId) => {
       const currentUserId = socket.data.userId || null;
       const prevChatId = socket.data.currentChatId;
       if (prevChatId && prevChatId !== chatId) {
@@ -80,17 +92,25 @@ function registerSocketHandlers(io) {
           emitChatPresence(io, prevChatId);
         }
       }
+      let addToPresence = !!currentUserId;
       if (currentUserId) {
-        if (!chatPresence.has(chatId)) chatPresence.set(chatId, new Set());
-        chatPresence.get(chatId).add(currentUserId);
+        const conv = await getOrCreateConversation(chatId);
+        if (conv?.type === 'group') {
+          const removed = (conv.removedParticipantIds || []).map((id) => id.toString());
+          if (removed.includes(currentUserId)) addToPresence = false;
+        }
+        if (addToPresence) {
+          if (!chatPresence.has(chatId)) chatPresence.set(chatId, new Set());
+          chatPresence.get(chatId).add(currentUserId);
+        }
       }
       socket.data.currentChatId = chatId;
       socket.join(`chat:${chatId}`);
       try {
         const history = await getMessageHistory(chatId, 100, currentUserId);
-        socket.emit(EVENTS.CHAT_HISTORY, { chatId, messages: history });
+        socket.emit(EVENTS.CONVERSATION_HISTORY, { chatId, messages: history });
         if (currentUserId) {
-          await markChatAsRead(chatId, currentUserId);
+          await markConversationAsRead(chatId, currentUserId);
           const roomName = `chat:${chatId}`;
           const updatedList = await getMessageHistory(chatId, 200, null);
           for (const payload of updatedList) {
@@ -104,12 +124,12 @@ function registerSocketHandlers(io) {
       }
     });
 
-    socket.on(EVENTS.JOIN_CHAT_ROOMS, (chatIds) => {
+    socket.on(EVENTS.JOIN_CONVERSATION_ROOMS, (chatIds) => {
       const ids = Array.isArray(chatIds) ? chatIds : [chatIds];
       ids.forEach((id) => id && socket.join(`chat:${id}`));
     });
 
-    socket.on(EVENTS.LEAVE_CHAT, (chatId) => {
+    socket.on(EVENTS.LEAVE_CONVERSATION, (chatId) => {
       const currentUserId = socket.data.userId;
       if (socket.data.currentChatId === chatId) socket.data.currentChatId = null;
       const set = chatPresence.get(chatId);
@@ -121,11 +141,11 @@ function registerSocketHandlers(io) {
       socket.leave(`chat:${chatId}`);
     });
 
-    socket.on(EVENTS.MARK_CHAT_READ, async (chatId) => {
+    socket.on(EVENTS.MARK_CONVERSATION_READ, async (chatId) => {
       const currentUserId = socket.data.userId || null;
       if (!chatId || !currentUserId) return;
       try {
-        await markChatAsRead(chatId, currentUserId);
+        await markConversationAsRead(chatId, currentUserId);
         const roomName = `chat:${chatId}`;
         const updatedList = await getMessageHistory(chatId, 200, null);
         for (const payload of updatedList) {
@@ -143,15 +163,55 @@ function registerSocketHandlers(io) {
       }
     });
 
+    socket.on(EVENTS.USER_TYPING, async (payload) => {
+      const conversationId = payload?.conversationId || payload?.chatId;
+      const userId = socket.data.userId;
+      const userName = socket.data.userName || 'Alguien';
+      if (!conversationId || !userId) return;
+      try {
+        const conv = await getOrCreateConversation(conversationId);
+        const removedIds = conv?.type === 'group' ? (conv.removedParticipantIds || []).map((id) => id.toString()) : [];
+        const roomName = `chat:${conversationId}`;
+        const payloadOut = { conversationId, userId, userName };
+        if (removedIds.length > 0) {
+          await emitToRoomExceptRemoved(io, roomName, EVENTS.USER_TYPING, payloadOut, removedIds);
+        } else {
+          socket.to(roomName).emit(EVENTS.USER_TYPING, payloadOut);
+        }
+      } catch (err) {
+        socket.to(`chat:${conversationId}`).emit(EVENTS.USER_TYPING, { conversationId, userId, userName });
+      }
+    });
+
+    socket.on(EVENTS.USER_STOPPED_TYPING, async (payload) => {
+      const conversationId = payload?.conversationId || payload?.chatId;
+      const userId = socket.data.userId;
+      const userName = socket.data.userName || 'Alguien';
+      if (!conversationId || !userId) return;
+      try {
+        const conv = await getOrCreateConversation(conversationId);
+        const removedIds = conv?.type === 'group' ? (conv.removedParticipantIds || []).map((id) => id.toString()) : [];
+        const roomName = `chat:${conversationId}`;
+        const payloadOut = { conversationId, userId, userName };
+        if (removedIds.length > 0) {
+          await emitToRoomExceptRemoved(io, roomName, EVENTS.USER_STOPPED_TYPING, payloadOut, removedIds);
+        } else {
+          socket.to(roomName).emit(EVENTS.USER_STOPPED_TYPING, payloadOut);
+        }
+      } catch (err) {
+        socket.to(`chat:${conversationId}`).emit(EVENTS.USER_STOPPED_TYPING, { conversationId, userId, userName });
+      }
+    });
+
     socket.on(EVENTS.VIDEO_CALL_OFFER, async (payload) => {
       const { chatId, roomName, callerId, callerName, callerAvatar } = payload || {};
       const currentUserId = socket.data.userId;
       if (!chatId || !roomName || !callerId || !callerName || currentUserId !== callerId) return;
       try {
-        const chat = await getOrCreateChat(chatId);
-        if (!chat || !chat.participants || chat.participants.length === 0) return;
+        const conv = await getOrCreateConversation(chatId);
+        if (!conv || !conv.participants || conv.participants.length === 0) return;
         const callerStr = String(callerId);
-        const otherParticipants = chat.participants
+        const otherParticipants = conv.participants
           .map((p) => (p._id ? p._id.toString() : p.toString()))
           .filter((id) => id !== callerStr);
         for (const targetUserId of otherParticipants) {
@@ -187,22 +247,25 @@ function registerSocketHandlers(io) {
     });
 
     socket.on(EVENTS.SEND_MESSAGE, async (payload) => {
-      const { chatId, text, type, imageUrl, stickerUrl, senderId, senderName } = payload;
+      const { chatId, text, type, imageUrl, stickerUrl, documentUrl, voiceUrl, senderId, senderName } = payload;
       const userId = socket.data.userId ?? senderId;
       const userName = socket.data.userName ?? senderName ?? 'Anónimo';
 
       const roomName = `chat:${chatId}`;
       let message;
+      let saved = null;
 
       const opts = {
         text: typeof text === 'string' ? text : (payload.text ?? ''),
         type: type || 'text',
         imageUrl: imageUrl || null,
         stickerUrl: stickerUrl || null,
+        documentUrl: documentUrl || null,
+        voiceUrl: voiceUrl || null,
       };
 
       try {
-        const saved = await saveMessage(chatId, userId, userName, opts);
+        saved = await saveMessage(chatId, userId, userName, opts);
         message = saved || {
           id: generateMessageId(),
           chatId,
@@ -210,6 +273,8 @@ function registerSocketHandlers(io) {
           type: opts.type || 'text',
           imageUrl: opts.imageUrl ?? null,
           stickerUrl: opts.stickerUrl ?? null,
+          documentUrl: opts.documentUrl ?? null,
+          voiceUrl: opts.voiceUrl ?? null,
           reactions: [],
           senderId: userId,
           senderName: userName,
@@ -225,6 +290,8 @@ function registerSocketHandlers(io) {
           type: opts.type || 'text',
           imageUrl: opts.imageUrl ?? null,
           stickerUrl: opts.stickerUrl ?? null,
+          documentUrl: opts.documentUrl ?? null,
+          voiceUrl: opts.voiceUrl ?? null,
           reactions: [],
           senderId: userId,
           senderName: userName,
@@ -233,12 +300,32 @@ function registerSocketHandlers(io) {
         };
       }
 
+      if (!saved) return;
+
       try {
-        const chat = await getOrCreateChat(chatId);
-        if (chat && chat.type === 'direct') {
+        const conv = await getOrCreateConversation(chatId);
+        const removedIds = conv?.type === 'group' ? (conv.removedParticipantIds || []).map((id) => id.toString()) : [];
+        if (conv && conv.type === 'direct') {
           await emitMessageToRoomExceptBlocking(io, roomName, message, userId);
+        } else if (removedIds.length > 0) {
+          await emitToRoomExceptRemoved(io, roomName, EVENTS.NEW_MESSAGE, message, removedIds);
         } else {
           io.to(roomName).emit(EVENTS.NEW_MESSAGE, message);
+        }
+        if (saved && saved.id && opts.type === 'text' && opts.text && opts.text.trim()) {
+          setImmediate(() => {
+            fetchAndAttachLinkPreview(saved.id)
+              .then((updated) => {
+                if (updated) {
+                  if (removedIds.length > 0) {
+                    emitToRoomExceptRemoved(io, roomName, EVENTS.MESSAGE_UPDATED, updated, removedIds);
+                  } else {
+                    io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, updated);
+                  }
+                }
+              })
+              .catch(() => {});
+          });
         }
       } catch (err) {
         console.error('Error emitting message:', err);
@@ -246,64 +333,18 @@ function registerSocketHandlers(io) {
       }
     });
 
-    socket.on(EVENTS.REACT_TO_MESSAGE, async (payload) => {
-      const { messageId, chatId, emoji } = payload;
+    socket.on(EVENTS.MESSAGE_DELIVERED, async (payload) => {
+      const { messageId, chatId } = payload || {};
       const userId = socket.data.userId;
-      if (!userId || !messageId || !emoji) return;
+      if (!userId || !messageId) return;
       try {
-        const updated = await toggleReaction(messageId, userId, String(emoji));
+        const updated = await markMessageDelivered(messageId, userId);
         if (updated) {
           const roomName = `chat:${updated.chatId || chatId}`;
           io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, updated);
         }
       } catch (err) {
-        console.error('Error toggling reaction:', err);
-      }
-    });
-
-    socket.on(EVENTS.EDIT_MESSAGE, async (payload) => {
-      const { messageId, chatId, text } = payload;
-      const userId = socket.data.userId;
-      if (!userId || !messageId) return;
-      try {
-        const updated = await editMessage(messageId, userId, typeof text === 'string' ? text : '');
-        if (updated) {
-          const roomName = `chat:${updated.chatId || chatId}`;
-          io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, updated);
-        }
-      } catch (err) {
-        console.error('Error editing message:', err);
-      }
-    });
-
-    socket.on(EVENTS.PIN_MESSAGE, async (payload) => {
-      const { messageId, chatId } = payload;
-      const userId = socket.data.userId;
-      if (!userId || !messageId) return;
-      try {
-        const result = await pinMessage(messageId, userId);
-        if (result) {
-          const roomName = `chat:${result.pinned.chatId || chatId}`;
-          io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, result.pinned);
-          if (result.unpinned) io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, result.unpinned);
-        }
-      } catch (err) {
-        console.error('Error pinning message:', err);
-      }
-    });
-
-    socket.on(EVENTS.UNPIN_MESSAGE, async (payload) => {
-      const { messageId, chatId } = payload;
-      const userId = socket.data.userId;
-      if (!userId || !messageId) return;
-      try {
-        const updated = await unpinMessage(messageId, userId);
-        if (updated) {
-          const roomName = `chat:${updated.chatId || chatId}`;
-          io.to(roomName).emit(EVENTS.MESSAGE_UPDATED, updated);
-        }
-      } catch (err) {
-        console.error('Error unpinning message:', err);
+        console.error('Error marking message delivered:', err);
       }
     });
 

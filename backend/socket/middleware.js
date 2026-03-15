@@ -1,11 +1,15 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { User } = require('../models');
+const tokenBlacklist = require('../lib/tokenBlacklist');
 
 async function authMiddleware(socket, next) {
   const token = socket.handshake.auth?.token;
   if (!token) {
     return next(new Error('No token'));
+  }
+  if (tokenBlacklist.has(token)) {
+    return next(new Error('Token revocado'));
   }
   try {
     const decoded = jwt.verify(token, config.jwtSecret);

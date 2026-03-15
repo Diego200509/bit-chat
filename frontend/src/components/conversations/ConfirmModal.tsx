@@ -20,27 +20,27 @@ export function ConfirmModal({
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4 safe-t safe-b safe-l safe-r" onClick={onCancel}>
       <div
-        className="w-full max-w-sm rounded-xl bg-bitchat-sidebar border border-bitchat-border shadow-xl"
+        className="w-full max-w-sm rounded-xl bg-talkapp-sidebar border border-talkapp-border shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-bitchat-border p-4">
-          <h2 className="font-semibold text-bitchat-fg">{title}</h2>
+        <header className="flex items-center justify-between border-b border-talkapp-border p-4">
+          <h2 className="font-semibold text-talkapp-fg">{title}</h2>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg"
+            className="rounded-lg p-2 text-talkapp-fg-muted hover:bg-talkapp-panel hover:text-talkapp-fg"
             aria-label="Cerrar"
           >
             <CloseIcon />
           </button>
         </header>
         <div className="p-4">
-          <p className="text-sm text-bitchat-fg-muted mb-4">{message}</p>
+          <p className="text-sm text-talkapp-fg-muted mb-4">{message}</p>
           <div className="flex gap-2 justify-end">
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-lg px-4 py-2 text-bitchat-fg-muted hover:bg-bitchat-panel"
+              className="rounded-lg px-4 py-2 text-talkapp-fg-muted hover:bg-talkapp-panel"
             >
               {cancelLabel}
             </button>
@@ -52,7 +52,7 @@ export function ConfirmModal({
               className={
                 danger
                   ? 'rounded-lg px-4 py-2 bg-red-600 text-white font-medium hover:bg-red-500'
-                  : 'rounded-lg px-4 py-2 bg-bitchat-cyan text-bitchat-blue-dark font-medium hover:opacity-90'
+                  : 'rounded-lg px-4 py-2 bg-talkapp-primary text-talkapp-on-primary font-medium hover:opacity-90'
               }
             >
               {confirmLabel}

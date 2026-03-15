@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import * as api from '../../lib/api'
 import { env } from '../../config/env'
-import { useFriends } from '../../hooks/useFriends'
+import { useContacts } from '../../hooks/useContacts'
 
 function fullUrl(path: string | null | undefined): string {
   if (!path) return ''
@@ -10,13 +10,13 @@ function fullUrl(path: string | null | undefined): string {
   return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
 }
 
-interface CreateGroupModalProps {
+interface CreateConversationModalProps {
   onClose: () => void
   onCreate: (name: string, participantIds: string[], image?: string | null) => Promise<void>
 }
 
-export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
-  const { friends } = useFriends()
+export function CreateConversationModal({ onClose, onCreate }: CreateConversationModalProps) {
+  const { friends } = useContacts()
   const [name, setName] = useState('')
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -69,23 +69,23 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4 safe-t safe-b safe-l safe-r" onClick={onClose}>
       <div
-        className="w-full max-w-md max-h-[90dvh] flex flex-col rounded-xl bg-bitchat-sidebar border border-bitchat-border shadow-xl"
+        className="w-full max-w-md max-h-[90dvh] flex flex-col rounded-xl bg-talkapp-sidebar border border-talkapp-border shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-bitchat-border p-4">
-          <h2 className="font-semibold text-bitchat-cyan">Nuevo grupo</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg" aria-label="Cerrar">
+        <header className="flex shrink-0 items-center justify-between border-b border-talkapp-border p-4">
+          <h2 className="font-semibold text-talkapp-primary">Nuevo grupo</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-talkapp-fg-muted hover:bg-talkapp-panel hover:text-talkapp-fg" aria-label="Cerrar">
             <CloseIcon />
           </button>
         </header>
         <form onSubmit={handleSubmit} className="flex flex-col p-4 gap-4 min-h-0 overflow-y-auto">
           <div>
-            <label className="block text-sm text-bitchat-fg-muted mb-1">Nombre del grupo</label>
+            <label className="block text-sm text-talkapp-fg-muted mb-1">Nombre del grupo</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-bitchat-border bg-bitchat-panel px-3 py-2 text-bitchat-fg placeholder-bitchat-fg-muted focus:border-bitchat-cyan focus:outline-none focus:ring-1 focus:ring-bitchat-cyan/50"
+              className="w-full rounded-lg border border-talkapp-border bg-talkapp-panel px-3 py-2 text-talkapp-fg placeholder-talkapp-fg-muted focus:border-talkapp-primary focus:outline-none focus:ring-1 focus:ring-talkapp-primary/50"
               placeholder="Ej: Familia"
               autoFocus
             />
@@ -95,7 +95,7 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="w-16 h-16 rounded-full overflow-hidden bg-bitchat-panel border-2 border-bitchat-border flex items-center justify-center shrink-0 hover:border-bitchat-cyan transition-colors"
+              className="w-16 h-16 rounded-full overflow-hidden bg-talkapp-panel border-2 border-talkapp-border flex items-center justify-center shrink-0 hover:border-talkapp-primary transition-colors"
             >
               {imageUrl ? (
                 <img src={fullUrl(imageUrl)} alt="" className="w-full h-full object-cover" />
@@ -111,25 +111,25 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
               onChange={handleImageChange}
             />
             <div>
-              <p className="text-sm font-medium text-bitchat-fg">Imagen del grupo</p>
-              <p className="text-xs text-bitchat-fg-muted">{uploading ? 'Subiendo…' : 'Clic para cambiar'}</p>
+              <p className="text-sm font-medium text-talkapp-fg">Imagen del grupo</p>
+              <p className="text-xs text-talkapp-fg-muted">{uploading ? 'Subiendo…' : 'Clic para cambiar'}</p>
             </div>
           </div>
           <div>
-            <label className="block text-sm text-bitchat-fg-muted mb-2">Añadir amigos</label>
-            <div className="chat-messages-scroll max-h-48 overflow-y-auto rounded-lg border border-bitchat-border bg-bitchat-panel divide-y divide-bitchat-border">
+            <label className="block text-sm text-talkapp-fg-muted mb-2">Añadir amigos</label>
+            <div className="chat-messages-scroll max-h-48 overflow-y-auto rounded-lg border border-talkapp-border bg-talkapp-panel divide-y divide-talkapp-border">
               {friends.length === 0 ? (
-                <p className="p-3 text-bitchat-fg-muted text-sm">No tienes amigos. Añade amigos primero.</p>
+                <p className="p-3 text-talkapp-fg-muted text-sm">No tienes amigos. Añade amigos primero.</p>
               ) : (
                 friends.map((f) => (
-                  <label key={f.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-bitchat-panel/80">
+                  <label key={f.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-talkapp-panel/80">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(f.userId)}
                       onChange={() => toggle(f.userId)}
-                      className="rounded border-bitchat-border text-bitchat-cyan focus:ring-bitchat-cyan"
+                      className="rounded border-talkapp-border text-talkapp-primary focus:ring-talkapp-primary"
                     />
-                    <span className="text-bitchat-fg truncate">{f.name}</span>
+                    <span className="text-talkapp-fg truncate">{f.name}</span>
                   </label>
                 ))
               )}
@@ -137,13 +137,13 @@ export function CreateGroupModal({ onClose, onCreate }: CreateGroupModalProps) {
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-bitchat-fg-muted hover:bg-bitchat-panel">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-talkapp-fg-muted hover:bg-talkapp-panel">
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="rounded-lg px-4 py-2 bg-bitchat-cyan text-bitchat-blue-dark font-medium hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg px-4 py-2 bg-talkapp-primary text-talkapp-on-primary font-medium hover:opacity-90 disabled:opacity-50"
             >
               {loading ? 'Creando…' : 'Crear grupo'}
             </button>

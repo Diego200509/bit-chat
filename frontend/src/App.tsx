@@ -1,18 +1,16 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
-import { useChat } from './hooks/useChat'
+import { useConversations } from './hooks/useConversations'
 import { useTheme } from './hooks/useTheme'
 import { useBlocked } from './hooks/useBlocked'
 import { useOnlineUsers } from './hooks/useOnlineUsers'
 import { ToastProvider } from './context/ToastContext'
 import { AuthScreen } from './components/auth'
-import { ChatList, ChatWindow, EditProfileModal, ConfirmModal } from './components/chat'
-import { FriendsPanel } from './components/friends'
+import { ConversationList, ConversationView, EditProfileModal, ConfirmModal } from './components/conversations'
+import { ContactsPanel } from './components/contacts'
 import { socket } from './lib/socket'
 import { SOCKET_EVENTS } from './constants/socket'
 import { env } from './config/env'
-
-const JITSI_BASE = 'https://meet.jit.si'
 
 type MobileView = 'list' | 'chat'
 
@@ -39,43 +37,38 @@ function ChatLayout() {
   const [mobileView, setMobileView] = useState<MobileView>('list')
   const onlineUserIds = useOnlineUsers()
   const {
-    chats,
+    conversations,
     currentChatId,
-    currentChat,
+    currentConversation,
     chatPresenceByChatId,
-    chatsLoading,
+    typingByChatId,
+    conversationsLoading,
     connected,
     currentUserId,
-    selectChat,
+    selectConversation,
     sendMessage,
-    openDirectChat,
-    pinChat,
-    unpinChat,
-    archiveChat,
-    unarchiveChat,
+    openDirectConversation,
+    muteConversation,
+    unmuteConversation,
     createGroupAndSelect,
     sendImage,
-    sendSticker,
-    addReaction,
-    editMessage,
-    pinMessage,
-    unpinMessage,
-    updateChatBackground,
+    sendDocument,
+    sendVoice,
     deleteMessage,
-    clearChat,
-  } = useChat(user!.id, displayName, {
-    getIsChatPanelVisible: () => mobileView === 'chat' || (typeof window !== 'undefined' && window.innerWidth >= 768),
+    clearConversation,
+    refreshConversations,
+  } = useConversations(user!.id, displayName, {
+    getIsConversationPanelVisible: () => mobileView === 'chat' || (typeof window !== 'undefined' && window.innerWidth >= 768),
   })
-  const [showFriendsPanel, setShowFriendsPanel] = useState(false)
+  const [showContactsPanel, setShowContactsPanel] = useState(false)
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null)
 
   const openJitsi = useCallback((roomName: string) => {
     const safeName = roomName.replace(/[^a-zA-Z0-9-]/g, '') || `room-${Date.now()}`
-    const url = `${JITSI_BASE}/${safeName}`
-    const w = window.open(url, 'jitsi', 'noopener,noreferrer,width=900,height=640')
-    if (!w) window.location.href = url
+    const url = `https://meet.jit.si/${safeName}`
+    window.open(url, 'jitsi', 'noopener,noreferrer,width=900,height=640')
   }, [])
 
   useEffect(() => {
@@ -89,8 +82,8 @@ function ChatLayout() {
     }
   }, [])
 
-  const handleSelectChat = (chatId: string) => {
-    selectChat(chatId)
+  const handleSelectConversation = (conversationId: string) => {
+    selectConversation(conversationId)
     setMobileView('chat')
   }
 
@@ -98,16 +91,16 @@ function ChatLayout() {
     setMobileView('list')
   }
 
-  const handleOpenFriends = () => setShowFriendsPanel(true)
-  const handleCloseFriends = () => setShowFriendsPanel(false)
+  const handleOpenContacts = () => setShowContactsPanel(true)
+  const handleCloseContacts = () => setShowContactsPanel(false)
 
-  const handleOpenChatWithFriend = useCallback(
+  const handleOpenConversationWithContact = useCallback(
     (otherUserId: string) => {
-      openDirectChat(otherUserId)
-      setShowFriendsPanel(false)
+      openDirectConversation(otherUserId)
+      setShowContactsPanel(false)
       setMobileView('chat')
     },
-    [openDirectChat]
+    [openDirectConversation]
   )
 
   const handleBlockUser = useCallback(
@@ -129,62 +122,58 @@ function ChatLayout() {
   )
 
   return (
-    <div className="min-h-screen bg-bitchat-bg text-bitchat-fg p-1.5 sm:p-2 md:p-2.5">
-      <div className="h-[calc(100vh-0.75rem)] sm:h-[calc(100vh-1rem)] md:h-[calc(100vh-1.25rem)] flex overflow-hidden rounded-lg border border-bitchat-border/60 shadow-lg">
+    <div className="min-h-screen bg-talkapp-bg text-talkapp-fg p-1.5 sm:p-2 md:p-2.5">
+      <div className="h-[calc(100vh-0.75rem)] sm:h-[calc(100vh-1rem)] md:h-[calc(100vh-1.25rem)] flex overflow-hidden rounded-lg border border-talkapp-border/60 shadow-lg">
       <aside
-        className={`flex flex-col w-full md:w-[380px] md:flex-shrink-0 md:border-r md:border-bitchat-border bg-bitchat-sidebar ${
+        className={`flex flex-col w-full md:w-[380px] md:flex-shrink-0 md:border-r md:border-talkapp-border bg-talkapp-sidebar ${
           mobileView === 'chat' ? 'hidden md:flex' : 'flex'
         }`}
       >
-        {showFriendsPanel ? (
-          <FriendsPanel onOpenChat={handleOpenChatWithFriend} onClose={handleCloseFriends} />
+        {showContactsPanel ? (
+          <ContactsPanel onOpenConversation={handleOpenConversationWithContact} onClose={handleCloseContacts} />
         ) : (
-          <ChatList
-            chats={chats}
+          <ConversationList
+            conversations={conversations}
             currentChatId={currentChatId}
-            onSelectChat={handleSelectChat}
+            onSelectConversation={handleSelectConversation}
             currentUserId={currentUserId}
             currentUserName={displayName}
             currentUserAvatar={user?.avatar}
+            typingByChatId={typingByChatId}
             onLogout={() => setShowLogoutConfirm(true)}
-            onOpenFriends={handleOpenFriends}
+            onOpenContacts={handleOpenContacts}
             onEditProfile={() => setShowEditProfile(true)}
-            chatsLoading={chatsLoading}
-            onPinChat={pinChat}
-            onUnpinChat={unpinChat}
-            onArchiveChat={archiveChat}
-            onUnarchiveChat={unarchiveChat}
+            conversationsLoading={conversationsLoading}
+            onMuteConversation={muteConversation}
+            onUnmuteConversation={unmuteConversation}
             onCreateGroup={createGroupAndSelect}
-            onClearChat={clearChat}
+            onClearConversation={clearConversation}
             theme={theme}
             onToggleTheme={toggleTheme}
           />
         )}
       </aside>
       <main
-        className={`flex flex-1 flex-col min-w-0 min-h-0 bg-bitchat-bg ${
+        className={`flex flex-1 flex-col min-w-0 min-h-0 bg-talkapp-bg ${
           mobileView === 'list' ? 'hidden md:flex' : 'flex'
         }`}
       >
-        <ChatWindow
-          chat={currentChat}
+        <ConversationView
+          conversation={currentConversation}
           onSendMessage={sendMessage}
           onSendImage={sendImage}
-          onSendSticker={sendSticker}
-          onReaction={addReaction}
-          onEditMessage={editMessage}
-          onPinMessage={pinMessage}
-          onUnpinMessage={unpinMessage}
-          onUpdateChatBackground={updateChatBackground}
+          onSendDocument={sendDocument}
+          onSendVoice={sendVoice}
           currentUserId={currentUserId}
           onBack={handleBackToList}
           onBlockUser={handleBlockUser}
           onUnblockUser={handleUnblockUser}
           blockedUserIds={blockedIds}
-          otherUserOnline={currentChat?.otherUserId ? onlineUserIds.has(currentChat.otherUserId) : undefined}
-          usersInCurrentChat={currentChatId ? (chatPresenceByChatId[currentChatId] ?? []) : []}
+          otherUserOnline={currentConversation?.otherUserId ? onlineUserIds.has(currentConversation.otherUserId) : undefined}
+          usersInCurrentConversation={currentChatId ? (chatPresenceByChatId[currentChatId] ?? []) : []}
           onDeleteMessage={deleteMessage}
-          onClearChat={clearChat}
+          onClearConversation={clearConversation}
+          onGroupUpdated={refreshConversations}
           currentUserName={displayName}
           currentUserAvatar={user?.avatar}
         />
@@ -208,9 +197,9 @@ function ChatLayout() {
           currentName={user.name}
           currentNickname={user.nickname?.trim() ?? ''}
           currentAvatar={user.avatar}
-          currentVisibility={user.visibility ?? 'visible'}
+          currentStatus={user.status}
           onClose={() => setShowEditProfile(false)}
-          onSave={async (updates) => updateProfile({ nickname: updates.nickname || null, avatar: updates.avatar ?? undefined, visibility: updates.visibility })}
+          onSave={async (updates) => updateProfile({ nickname: updates.nickname || null, avatar: updates.avatar !== undefined ? updates.avatar : undefined, status: updates.status ?? null })}
         />
       )}
       {!connected && (
@@ -221,10 +210,10 @@ function ChatLayout() {
 
       {incomingCall && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 safe-t safe-b safe-l safe-r">
-          <div className="w-full max-w-sm max-h-[90dvh] flex flex-col rounded-2xl bg-bitchat-sidebar border border-bitchat-border shadow-2xl overflow-hidden">
+          <div className="w-full max-w-sm max-h-[90dvh] flex flex-col rounded-2xl bg-talkapp-sidebar border border-talkapp-border shadow-2xl overflow-hidden">
             <div className="p-6 pb-4 text-center">
               <div className="relative inline-block mb-4">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-bitchat-panel border-4 border-bitchat-cyan/50 flex items-center justify-center ring-4 ring-bitchat-cyan/20">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-talkapp-panel border-4 border-talkapp-primary/50 flex items-center justify-center ring-4 ring-talkapp-primary/20">
                   {incomingCall.callerAvatar ? (
                     <img
                       src={fullAvatarUrl(incomingCall.callerAvatar)}
@@ -235,13 +224,13 @@ function ChatLayout() {
                     <span className="text-4xl text-slate-500">👤</span>
                   )}
                 </div>
-                <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-bitchat-cyan text-bitchat-blue-dark">
+                <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-talkapp-primary text-talkapp-on-primary">
                   <VideoCallRingingIcon className="h-3.5 w-3.5" />
                 </span>
               </div>
-              <p className="text-bitchat-fg-muted text-sm font-medium">Videollamada entrante</p>
-              <p className="text-bitchat-fg text-xl font-semibold mt-1">{incomingCall.callerName}</p>
-              <p className="text-bitchat-cyan text-sm mt-0.5">te está llamando</p>
+              <p className="text-talkapp-fg-muted text-sm font-medium">Videollamada entrante</p>
+              <p className="text-talkapp-fg text-xl font-semibold mt-1">{incomingCall.callerName}</p>
+              <p className="text-talkapp-primary text-sm mt-0.5">te está llamando</p>
             </div>
             <div className="flex gap-3 p-4 pt-0">
               <button
@@ -265,7 +254,7 @@ function ChatLayout() {
                   openJitsi(incomingCall.roomName)
                   setIncomingCall(null)
                 }}
-                className="flex-1 rounded-xl py-3.5 bg-bitchat-cyan text-bitchat-blue-dark font-semibold hover:opacity-90 active:opacity-80 transition-colors"
+                className="flex-1 rounded-xl py-3.5 bg-talkapp-primary text-talkapp-on-primary font-semibold hover:opacity-90 active:opacity-80 transition-colors"
               >
                 Aceptar
               </button>
@@ -290,8 +279,8 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bitchat-bg">
-        <div className="text-bitchat-cyan">Cargando…</div>
+      <div className="min-h-screen flex items-center justify-center bg-talkapp-bg">
+        <div className="text-talkapp-primary">Cargando…</div>
       </div>
     )
   }

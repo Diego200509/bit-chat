@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-const STORAGE_KEY = 'bitchat_theme'
+const STORAGE_KEY = 'talkapp_theme'
 type Theme = 'dark' | 'light'
 
 function getStoredTheme(): Theme {

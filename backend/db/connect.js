@@ -4,7 +4,7 @@ const config = require('../config');
 async function connectDb() {
   try {
     await mongoose.connect(config.mongoUri);
-    console.log('MongoDB conectado:', config.mongoUri);
+    console.log('TalkApp · Base de datos lista');
   } catch (err) {
     console.error('Error conectando a MongoDB:', err.message);
     throw err;

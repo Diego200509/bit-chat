@@ -1,6 +1,6 @@
 module.exports = {
   User: require('./User'),
-  Chat: require('./Chat'),
+  Conversation: require('./Conversation'),
   Message: require('./Message'),
-  Friendship: require('./Friendship'),
+  Contact: require('./Contact'),
 };

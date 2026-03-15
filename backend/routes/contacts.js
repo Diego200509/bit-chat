@@ -1,6 +1,6 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
-const { User, Friendship } = require('../models');
+const { User, Contact } = require('../models');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -11,14 +11,14 @@ router.post('/request', async (req, res) => {
     if (!addresseeId || addresseeId === req.userId) {
       return res.status(400).json({ error: 'addresseeId inválido' });
     }
-    const exists = await Friendship.findOne({
+    const exists = await Contact.findOne({
       $or: [
         { requester: req.userId, addressee: addresseeId },
         { requester: addresseeId, addressee: req.userId },
       ],
     });
     if (exists) {
-      if (exists.status === 'accepted') return res.status(409).json({ error: 'Ya son amigos' });
+      if (exists.status === 'accepted') return res.status(409).json({ error: 'Ya son contactos' });
       if (exists.requester.toString() === req.userId && exists.status === 'pending') {
         return res.status(409).json({ error: 'Ya enviaste una solicitud' });
       }
@@ -26,7 +26,7 @@ router.post('/request', async (req, res) => {
         return res.status(409).json({ error: 'Esa persona ya te envió una solicitud. Acéptala desde solicitudes.' });
       }
     }
-    const doc = await Friendship.findOneAndUpdate(
+    const doc = await Contact.findOneAndUpdate(
       { requester: req.userId, addressee: addresseeId },
       { $setOnInsert: { requester: req.userId, addressee: addresseeId, status: 'pending' } },
       { upsert: true, returnDocument: 'after' }
@@ -39,7 +39,7 @@ router.post('/request', async (req, res) => {
       status: doc.status,
     });
   } catch (err) {
-    console.error('Friend request error:', err);
+    console.error('Contact request error:', err);
     res.status(500).json({ error: 'Error al enviar solicitud' });
   }
 });
@@ -47,8 +47,8 @@ router.post('/request', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const [asRequester, asAddressee] = await Promise.all([
-      Friendship.find({ requester: req.userId }).populate('addressee', 'name email avatar').lean(),
-      Friendship.find({ addressee: req.userId }).populate('requester', 'name email avatar').lean(),
+      Contact.find({ requester: req.userId }).populate('addressee', 'name email avatar').lean(),
+      Contact.find({ addressee: req.userId }).populate('requester', 'name email avatar').lean(),
     ]);
     const friends = [];
     const sent = [];
@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
     });
     return res.json({ friends, sent, received });
   } catch (err) {
-    console.error('List friends error:', err);
+    console.error('List contacts error:', err);
     res.status(500).json({ error: 'Error al listar' });
   }
 });
@@ -79,7 +79,7 @@ router.patch('/request/:id', async (req, res) => {
     if (action !== 'accept' && action !== 'reject') {
       return res.status(400).json({ error: 'action debe ser accept o reject' });
     }
-    const doc = await Friendship.findOne({ _id: id, addressee: req.userId, status: 'pending' });
+    const doc = await Contact.findOne({ _id: id, addressee: req.userId, status: 'pending' });
     if (!doc) return res.status(404).json({ error: 'Solicitud no encontrada' });
     doc.status = action === 'accept' ? 'accepted' : 'rejected';
     await doc.save();

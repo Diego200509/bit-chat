@@ -1,3 +1,8 @@
+# Variables de entorno (no subir credenciales)
+.env
+.env.local
+.env.*.local
+
 # Logs
 logs
 *.log

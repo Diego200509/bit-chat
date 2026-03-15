@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const friendshipSchema = new mongoose.Schema(
+const contactSchema = new mongoose.Schema(
   {
     requester: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     addressee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -14,7 +14,7 @@ const friendshipSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-friendshipSchema.index({ requester: 1, addressee: 1 }, { unique: true });
-friendshipSchema.index({ addressee: 1, status: 1 });
+contactSchema.index({ requester: 1, addressee: 1 }, { unique: true });
+contactSchema.index({ addressee: 1, status: 1 });
 
-module.exports = mongoose.model('Friendship', friendshipSchema);
+module.exports = mongoose.model('Contact', contactSchema, 'contacts');

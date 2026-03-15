@@ -15,13 +15,13 @@ router.patch('/me', async (req, res) => {
     if (Object.prototype.hasOwnProperty.call(body, 'avatar')) {
       update.avatar = typeof body.avatar === 'string' ? (body.avatar.trim() || null) : null;
     }
-    if (Object.prototype.hasOwnProperty.call(body, 'visibility')) {
-      const v = body.visibility;
-      update.visibility = v === 'invisible' || v === 'visible' ? v : 'visible';
+    if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+      const s = body.status;
+      update.status = typeof s === 'string' ? s.trim().slice(0, 80) || null : null;
     }
     if (Object.keys(update).length === 0) return res.json({ ok: true });
     const user = await User.findByIdAndUpdate(req.userId, { $set: update }, { returnDocument: 'after' })
-      .select('name email nickname avatar visibility')
+      .select('name email nickname avatar status')
       .lean();
     const displayName = (user.nickname && user.nickname.trim()) ? user.nickname.trim() : user.name;
     const io = req.app.get('io');
@@ -31,6 +31,7 @@ router.patch('/me', async (req, res) => {
         displayName,
         nickname: user.nickname,
         avatar: user.avatar,
+        status: user.status,
       });
     }
     return res.json({
@@ -39,7 +40,7 @@ router.patch('/me', async (req, res) => {
       nickname: user.nickname,
       email: user.email,
       avatar: user.avatar,
-      visibility: user.visibility,
+      status: user.status,
     });
   } catch (err) {
     console.error('Update me error:', err);

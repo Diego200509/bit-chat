@@ -4,8 +4,8 @@ const cors = require('cors');
 const config = require('./config');
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
-const friendsRoutes = require('./routes/friends');
-const chatsRoutes = require('./routes/chats');
+const contactsRoutes = require('./routes/contacts');
+const conversationsRoutes = require('./routes/conversations');
 const messagesRoutes = require('./routes/messages');
 const uploadRoutes = require('./routes/upload');
 
@@ -15,7 +15,7 @@ app.use(cors({ origin: config.cors.origin }));
 app.use(express.json());
 
 app.get('/health', (_, res) => {
-  res.json({ status: 'ok', service: 'bitchat-backend' });
+  res.json({ status: 'ok', service: 'talkapp-backend' });
 });
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -26,8 +26,8 @@ app.use('/stickers', (req, res, next) => {
 app.use('/upload', uploadRoutes);
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
-app.use('/friends', friendsRoutes);
-app.use('/chats', chatsRoutes);
+app.use('/contacts', contactsRoutes);
+app.use('/conversations', conversationsRoutes);
 app.use('/messages', messagesRoutes);
 
 module.exports = app;

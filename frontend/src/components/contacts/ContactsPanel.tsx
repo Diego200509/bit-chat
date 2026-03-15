@@ -1,18 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import * as api from '../../lib/api'
-import type { FriendItem, SearchUser } from '../../lib/api'
-import { useFriends } from '../../hooks/useFriends'
+import type { ContactItem, SearchUser } from '../../lib/api'
+import { useContacts } from '../../hooks/useContacts'
 
 const SEARCH_DEBOUNCE_MS = 350
 
-interface FriendsPanelProps {
-  onOpenChat: (otherUserId: string) => void
+interface ContactsPanelProps {
+  onOpenConversation: (otherUserId: string) => void
   onClose: () => void
 }
 
-export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
+export function ContactsPanel({ onOpenConversation, onClose }: ContactsPanelProps) {
   const { friends, sent, received, loading, error, sendRequest, acceptRequest, rejectRequest } =
-    useFriends()
+    useContacts()
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
   const [searching, setSearching] = useState(false)
@@ -56,22 +56,22 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
     friends.some((f) => f.userId === userId) || sent.some((s) => s.userId === userId)
 
   return (
-    <div className="flex h-full flex-col bg-bitchat-sidebar">
-      <header className="flex shrink-0 items-center justify-between border-b border-bitchat-border p-3 safe-t safe-l safe-r">
-        <h2 className="font-semibold text-bitchat-cyan">Amigos</h2>
+    <div className="flex h-full flex-col bg-talkapp-sidebar">
+      <header className="flex shrink-0 items-center justify-between border-b border-talkapp-border p-3 safe-t safe-l safe-r">
+        <h2 className="font-semibold text-talkapp-primary">Contactos</h2>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg"
+          className="rounded-lg p-2 text-talkapp-fg-muted hover:bg-talkapp-panel hover:text-talkapp-fg"
           aria-label="Cerrar"
         >
           <CloseIcon />
         </button>
       </header>
 
-      <div className="flex shrink-0 items-center gap-2 border-b border-bitchat-border p-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-bitchat-border bg-bitchat-panel pl-3 pr-3 focus-within:border-bitchat-cyan focus-within:ring-1 focus-within:ring-bitchat-cyan/50">
-          <span className="shrink-0 text-bitchat-fg-muted" aria-hidden>
+      <div className="flex shrink-0 items-center gap-2 border-b border-talkapp-border p-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-talkapp-border bg-talkapp-panel pl-3 pr-3 focus-within:border-talkapp-primary focus-within:ring-1 focus-within:ring-talkapp-primary/50">
+          <span className="shrink-0 text-talkapp-fg-muted" aria-hidden>
             <SearchIcon />
           </span>
           <input
@@ -79,18 +79,18 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por nombre o email..."
-            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-bitchat-fg placeholder-bitchat-fg-muted focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-talkapp-fg placeholder-talkapp-fg-muted focus:outline-none"
           />
           {searching && (
-            <span className="shrink-0 text-bitchat-cyan" aria-hidden>
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-bitchat-cyan border-t-transparent" />
+            <span className="shrink-0 text-talkapp-primary" aria-hidden>
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-talkapp-primary border-t-transparent" />
             </span>
           )}
         </div>
       </div>
 
       {error && (
-        <div className="border-b border-bitchat-border bg-red-900/20 px-3 py-2 text-sm text-red-400">
+        <div className="border-b border-talkapp-border bg-red-900/20 px-3 py-2 text-sm text-red-400">
           {error}
         </div>
       )}
@@ -98,24 +98,24 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
       <div className="chat-messages-scroll overscroll-behavior-contain flex-1 min-h-0 overflow-y-auto p-3">
         {searchResults.length > 0 && (
           <section className="mb-4">
-            <h3 className="mb-2 text-xs font-medium uppercase text-bitchat-fg-muted">Resultados</h3>
+            <h3 className="mb-2 text-xs font-medium uppercase text-talkapp-fg-muted">Resultados</h3>
             <ul className="space-y-1">
               {searchResults.map((u) => (
                 <li
                   key={u.id}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-bitchat-panel p-2"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-talkapp-panel p-2"
                 >
-                  <span className="min-w-0 truncate text-sm text-bitchat-fg">
-                    {u.name} <span className="text-bitchat-fg-muted">({u.email})</span>
+                  <span className="min-w-0 truncate text-sm text-talkapp-fg">
+                    {u.name} <span className="text-talkapp-fg-muted">({u.email})</span>
                   </span>
                   {isAlreadyFriendOrSent(u.id) ? (
-                    <span className="text-xs text-bitchat-fg-muted">Amigo / Enviada</span>
+                    <span className="text-xs text-talkapp-fg-muted">Amigo / Enviada</span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => handleSendRequest(u.id)}
                       disabled={sendingId === u.id}
-                      className="shrink-0 rounded-lg bg-bitchat-cyan px-2 py-1 text-xs font-medium text-bitchat-blue-dark hover:bg-bitchat-cyan-bright disabled:opacity-50"
+                      className="shrink-0 rounded-lg bg-talkapp-primary px-2 py-1 text-xs font-medium text-talkapp-on-primary hover:bg-talkapp-accent disabled:opacity-50"
                     >
                       {sendingId === u.id ? '…' : 'Agregar'}
                     </button>
@@ -128,7 +128,7 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
 
         {received.length > 0 && (
           <section className="mb-4">
-            <h3 className="mb-2 text-xs font-medium uppercase text-bitchat-fg-muted">Solicitudes recibidas</h3>
+            <h3 className="mb-2 text-xs font-medium uppercase text-talkapp-fg-muted">Solicitudes recibidas</h3>
             <ul className="space-y-1">
               {received.map((r) => (
                 <RequestRow
@@ -143,23 +143,23 @@ export function FriendsPanel({ onOpenChat, onClose }: FriendsPanelProps) {
         )}
 
         <section>
-          <h3 className="mb-2 text-xs font-medium uppercase text-bitchat-fg-muted">Amigos</h3>
+          <h3 className="mb-2 text-xs font-medium uppercase text-talkapp-fg-muted">Contactos</h3>
           {loading ? (
-            <p className="text-sm text-bitchat-fg-muted">Cargando…</p>
+            <p className="text-sm text-talkapp-fg-muted">Cargando…</p>
           ) : friends.length === 0 ? (
-            <p className="text-sm text-bitchat-fg-muted">Aún no tienes amigos. Busca y agrega a alguien.</p>
+            <p className="text-sm text-talkapp-fg-muted">Aún no tienes amigos. Busca y agrega a alguien.</p>
           ) : (
             <ul className="space-y-1">
               {friends.map((f) => (
                 <li
                   key={f.id}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-bitchat-panel p-2"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-talkapp-panel p-2"
                 >
-                  <span className="min-w-0 truncate text-sm text-bitchat-fg">{f.name}</span>
+                  <span className="min-w-0 truncate text-sm text-talkapp-fg">{f.name}</span>
                   <button
                     type="button"
-                    onClick={() => onOpenChat(f.userId)}
-                    className="shrink-0 rounded-lg bg-bitchat-cyan px-2 py-1 text-xs font-medium text-bitchat-blue-dark hover:bg-bitchat-cyan-bright"
+                    onClick={() => onOpenConversation(f.userId)}
+                    className="shrink-0 rounded-lg bg-talkapp-primary px-2 py-1 text-xs font-medium text-talkapp-on-primary hover:bg-talkapp-accent"
                   >
                     Chatear
                   </button>
@@ -178,13 +178,13 @@ function RequestRow({
   onAccept,
   onReject,
 }: {
-  item: FriendItem
+  item: ContactItem
   onAccept: () => void
   onReject: () => void
 }) {
   return (
-    <li className="flex items-center justify-between gap-2 rounded-lg bg-bitchat-panel p-2">
-      <span className="min-w-0 truncate text-sm text-bitchat-fg">{item.name}</span>
+    <li className="flex items-center justify-between gap-2 rounded-lg bg-talkapp-panel p-2">
+      <span className="min-w-0 truncate text-sm text-talkapp-fg">{item.name}</span>
       <div className="flex shrink-0 gap-1">
         <button
           type="button"

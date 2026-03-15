@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="purpleGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#9b4ddf"/>
+      <stop offset="100%" style="stop-color:#7B2CBF"/>
+    </linearGradient>
+  </defs>
+  <!-- Burbuja de chat -->
+  <path d="M80 140C80 88 140 48 256 48s176 40 176 92v160c0 52-60 92-176 92-24 0-46-3-66-10v56c0 6-5 11-11 11-3 0-6-1-8-4l-71-71C80 396 80 372 80 300V140z" fill="url(#purpleGrad)"/>
+  <!-- Micrófono -->
+  <g fill="#1a1a1a">
+    <path d="M176 200v64c0 40 36 72 80 72s80-32 80-72v-64c0-40-36-72-80-72s-80 32-80 72zm128 0v64c0 22-18 40-40 40s-40-18-40-40v-64c0-22 18-40 40-40s40 18 40 40z"/>
+    <rect x="244" y="336" width="24" height="48" rx="4"/>
+  </g>
+  <!-- Tres puntos -->
+  <circle cx="340" cy="252" r="20" fill="#1a1a1a"/>
+  <circle cx="388" cy="252" r="20" fill="#1a1a1a"/>
+  <circle cx="436" cy="252" r="20" fill="#1a1a1a"/>
+  <!-- Ondas de señal -->
+  <g fill="none" stroke="url(#purpleGrad)" stroke-width="16" stroke-linecap="round">
+    <path d="M380 100a14 14 0 1 1 0-28 14 14 0 0 1 0 28z"/>
+    <path d="M380 72a42 42 0 1 1 0-84 42 42 0 0 1 0 84z"/>
+    <path d="M380 28a86 86 0 1 1 0 172 86 86 0 0 1 0-172z"/>
+  </g>
+</svg>

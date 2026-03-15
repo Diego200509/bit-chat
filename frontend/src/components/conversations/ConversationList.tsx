@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
-import type { Chat } from '../../types/chat'
+import type { Conversation } from '../../types/conversation'
 import { ConfirmModal } from './ConfirmModal'
-import { CreateGroupModal } from './CreateGroupModal'
+import { CreateConversationModal } from './CreateConversationModal'
 import { env } from '../../config/env'
 
 function LastMessagePreview({ text }: { text: string }) {
   return (
     <p
       title={text}
-      className="text-sm text-bitchat-fg-muted truncate max-w-[180px] sm:max-w-[220px]"
+      className="text-sm text-talkapp-fg-muted truncate max-w-[180px] sm:max-w-[220px]"
     >
       {text}
     </p>
@@ -48,76 +48,55 @@ function DoubleCheckIcon({ className }: { className?: string }) {
   )
 }
 
-interface ChatListProps {
-  chats: Chat[]
+interface ConversationListProps {
+  conversations: Conversation[]
   currentChatId: string | null
-  onSelectChat: (chatId: string) => void
+  onSelectConversation: (conversationId: string) => void
   currentUserId?: string
   currentUserName?: string
   currentUserAvatar?: string | null
   onLogout?: () => void
-  onOpenFriends?: () => void
+  onOpenContacts?: () => void
   onEditProfile?: () => void
-  chatsLoading?: boolean
-  onPinChat?: (chatId: string) => void
-  onUnpinChat?: (chatId: string) => void
-  onArchiveChat?: (chatId: string) => void
-  onUnarchiveChat?: (chatId: string) => void
+  conversationsLoading?: boolean
+  onMuteConversation?: (conversationId: string) => void
+  onUnmuteConversation?: (conversationId: string) => void
   onCreateGroup?: (name: string, participantIds: string[], image?: string | null) => Promise<void>
-  onClearChat?: (chatId: string) => void
+  onClearConversation?: (conversationId: string) => void
   theme?: 'dark' | 'light'
   onToggleTheme?: () => void
+  typingByChatId?: Record<string, Array<{ userId: string; userName: string }>>
 }
 
-export function ChatList({
-  chats,
+export function ConversationList({
+  conversations,
   currentChatId,
-  onSelectChat,
+  onSelectConversation,
   currentUserId,
   currentUserName = 'Yo',
   onLogout,
-  onOpenFriends,
+  onOpenContacts,
   currentUserAvatar,
   onEditProfile,
-  chatsLoading = false,
-  onPinChat,
-  onUnpinChat,
-  onArchiveChat,
-  onUnarchiveChat,
+  conversationsLoading = false,
+  onMuteConversation,
+  onUnmuteConversation,
   onCreateGroup,
-  onClearChat,
+  onClearConversation,
   theme = 'dark',
   onToggleTheme,
-}: ChatListProps) {
+  typingByChatId = {},
+}: ConversationListProps) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [menuStyle, setMenuStyle] = useState<{ top: number; left: number } | null>(null)
-  const [clearConfirmChatId, setClearConfirmChatId] = useState<string | null>(null)
-  const [showArchived, setShowArchived] = useState(false)
+  const [clearConfirmConversationId, setClearConfirmConversationId] = useState<string | null>(null)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [chatFilter, setChatFilter] = useState<'all' | 'unread'>('all')
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
   const [headerMenuStyle, setHeaderMenuStyle] = useState<{ top: number; left: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuDropdownRef = useRef<HTMLDivElement>(null)
   const headerMenuRef = useRef<HTMLButtonElement>(null)
   const headerMenuDropdownRef = useRef<HTMLDivElement>(null)
-
-  const mainChats = chats.filter((c) => !c.isArchived)
-  const archivedChats = chats.filter((c) => c.isArchived)
-
-  const filteredByFilter = mainChats.filter((c) => {
-    if (chatFilter === 'unread') return (c.unread ?? 0) > 0
-    return true
-  })
-  const searchLower = searchQuery.trim().toLowerCase()
-  const filteredMainChats = searchLower
-    ? filteredByFilter.filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchLower) ||
-          (c.lastMessage?.toLowerCase().includes(searchLower) ?? false)
-      )
-    : filteredByFilter
 
   useEffect(() => {
     if (!headerMenuOpen || !headerMenuRef.current) {
@@ -193,27 +172,22 @@ export function ChatList({
     return () => document.removeEventListener('click', close)
   }, [menuOpenId])
 
-  const renderChatRow = (chat: Chat) => {
-    const isActive = currentChatId === chat.id
-    const menuOpen = menuOpenId === chat.id
+  const renderConversationRow = (conversation: Conversation) => {
+    const isActive = currentChatId === conversation.id
+    const menuOpen = menuOpenId === conversation.id
     return (
-      <li key={chat.id} className="relative">
+      <li key={conversation.id} className="relative">
         <div className="flex w-full items-center gap-2 p-2 pr-1">
           <button
             type="button"
-            onClick={() => onSelectChat(chat.id)}
-            className={`flex flex-1 min-w-0 items-center gap-3 p-3 text-left transition-colors active:bg-bitchat-panel/90 min-h-[72px] touch-manipulation rounded-lg ${
-              isActive ? 'bg-bitchat-panel border-l-2 border-bitchat-cyan' : 'hover:bg-bitchat-panel/70'
+            onClick={() => onSelectConversation(conversation.id)}
+            className={`flex flex-1 min-w-0 items-center gap-3 p-3 text-left transition-colors active:bg-talkapp-panel/90 min-h-[72px] touch-manipulation rounded-lg ${
+              isActive ? 'bg-talkapp-panel border-l-2 border-talkapp-primary' : 'hover:bg-talkapp-panel/70'
             }`}
           >
-            {chat.isPinned && (
-              <span className="flex-shrink-0 text-bitchat-cyan" title="Fijado">
-                <PinIcon className="w-4 h-4" />
-              </span>
-            )}
-            <div className="w-12 h-12 rounded-full bg-bitchat-blue-dark flex items-center justify-center text-bitchat-cyan font-semibold flex-shrink-0 overflow-hidden">
+            <div className="w-12 h-12 rounded-full bg-talkapp-on-primary flex items-center justify-center text-talkapp-primary font-semibold flex-shrink-0 overflow-hidden">
               {(() => {
-                const avatarUrl = chat.avatar || chat.image
+                const avatarUrl = conversation.avatar || conversation.image
                 const url = avatarUrl && avatarUrl.trim()
                   ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')
                       ? avatarUrl
@@ -221,52 +195,78 @@ export function ChatList({
                   : null
                 return url
                   ? <img src={url} alt="" className="w-full h-full object-cover" />
-                  : chat.name.charAt(0).toUpperCase()
+                  : conversation.name.charAt(0).toUpperCase()
               })()}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 min-w-0">
-                <p className="font-medium text-bitchat-fg truncate min-w-0 flex-1">{chat.name}</p>
-                {chat.lastMessageTime != null && (
-                  <span className="flex-shrink-0 text-[11px] text-bitchat-fg-muted">
-                    {formatLastMessageTime(chat.lastMessageTime)}
-                  </span>
-                )}
-              </div>
-              {chat.lastMessage != null && (
-                <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
-                  {currentUserId && chat.lastMessageSenderId === currentUserId && (
-                    <span
-                      className="flex-shrink-0 text-bitchat-fg-muted"
-                      title={chat.lastMessageReadBy?.some((id) => id !== currentUserId) ? 'Visto' : 'Enviado'}
-                    >
-                      {chat.lastMessageReadBy?.some((id) => id !== currentUserId)
-                        ? <DoubleCheckIcon className="w-3.5 h-3.5 text-bitchat-cyan" />
-                        : <SingleCheckIcon className="w-3.5 h-3.5" />
-                      }
+                <p className="font-medium text-talkapp-fg truncate min-w-0 flex-1">
+                  {conversation.otherUserId != null && conversation.otherUserStatus?.trim()
+                    ? `${conversation.name} · ${conversation.otherUserStatus}`
+                    : conversation.name}
+                </p>
+                <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+                  {conversation.lastMessageTime != null && (
+                    <span className="text-[11px] text-talkapp-fg-muted">
+                      {formatLastMessageTime(conversation.lastMessageTime)}
                     </span>
                   )}
-                  <div className="min-w-0 flex-1">
-                    <LastMessagePreview text={chat.lastMessage} />
-                  </div>
+                  {conversation.isMuted && (
+                    <MuteIcon className="w-3.5 h-3.5 text-talkapp-fg-muted" aria-hidden />
+                  )}
+                </div>
+              </div>
+              {(conversation.lastMessage != null || ((typingByChatId[conversation.id]?.length ?? 0) > 0 && !conversation.isRemovedFromGroup)) && (
+                <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+                  {(typingByChatId[conversation.id]?.length ?? 0) > 0 && !conversation.isRemovedFromGroup ? (
+                    <p className="text-sm text-talkapp-fg-muted truncate max-w-[180px] sm:max-w-[220px] italic">
+                      Escribiendo...
+                    </p>
+                  ) : (
+                    <>
+                      {currentUserId && conversation.lastMessageSenderId === currentUserId && (
+                        <span
+                          className="flex-shrink-0 text-talkapp-fg-muted"
+                          title={
+                            conversation.lastMessageReadBy?.some((id) => id !== currentUserId)
+                              ? 'Visto'
+                              : conversation.lastMessageDeliveredBy?.some((id) => id !== currentUserId)
+                                ? 'Entregado'
+                                : 'Enviado'
+                          }
+                        >
+                          {conversation.lastMessageReadBy?.some((id) => id !== currentUserId) ? (
+                            <DoubleCheckIcon className="w-3.5 h-3.5 text-[#00C78C]" />
+                          ) : conversation.lastMessageDeliveredBy?.some((id) => id !== currentUserId) ? (
+                            <DoubleCheckIcon className="w-3.5 h-3.5 text-talkapp-fg-muted" />
+                          ) : (
+                            <SingleCheckIcon className="w-3.5 h-3.5 text-talkapp-fg-muted" />
+                          )}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <LastMessagePreview text={conversation.lastMessage ?? ''} />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
-            {chat.unread != null && chat.unread > 0 && (
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-bitchat-cyan text-bitchat-blue-dark text-xs font-bold flex items-center justify-center">
-                {chat.unread}
+            {conversation.unread != null && conversation.unread > 0 && (
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-talkapp-primary text-talkapp-on-primary text-xs font-bold flex items-center justify-center">
+                {conversation.unread}
               </span>
             )}
           </button>
-          {(onPinChat || onArchiveChat || onClearChat) && (
+          {(onMuteConversation || onUnmuteConversation || onClearConversation) && (
             <div className="relative flex-shrink-0" ref={menuOpen ? menuRef : undefined}>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
-                  setMenuOpenId(menuOpen ? null : chat.id)
+                  setMenuOpenId(menuOpen ? null : conversation.id)
                 }}
-                className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg"
+                className="rounded-lg p-2 text-talkapp-fg-muted hover:bg-talkapp-panel hover:text-talkapp-fg"
                 aria-label="Opciones"
               >
                 <DotsIcon />
@@ -274,75 +274,46 @@ export function ChatList({
               {menuOpen && menuStyle && createPortal(
                 <div
                   ref={menuDropdownRef}
-                  className="fixed z-[100] w-48 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-1 shadow-xl"
+                  className="fixed z-[100] w-48 rounded-lg border border-talkapp-border bg-talkapp-sidebar py-1 shadow-xl"
                   style={{ top: menuStyle.top, left: menuStyle.left }}
                 >
-                  {chat.isPinned ? (
-                    onUnpinChat && (
+                  {conversation.isMuted ? (
+                    onUnmuteConversation && (
                       <button
                         type="button"
                         onClick={() => {
-                          onUnpinChat(chat.id)
+                          onUnmuteConversation(conversation.id)
                           setMenuOpenId(null)
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel transition-colors"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel transition-colors"
                       >
-                        <PinIcon className="h-5 w-5 shrink-0" />
-                        Desfijar
+                        <VolumeOnIcon className="h-5 w-5 shrink-0" />
+                        Activar sonido
                       </button>
                     )
                   ) : (
-                    onPinChat && (
+                    onMuteConversation && (
                       <button
                         type="button"
                         onClick={() => {
-                          onPinChat(chat.id)
+                          onMuteConversation(conversation.id)
                           setMenuOpenId(null)
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel transition-colors"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel transition-colors"
                       >
-                        <PinIcon className="h-5 w-5 shrink-0" />
-                        Fijar
+                        <MuteIcon className="h-5 w-5 shrink-0" />
+                        Silenciar
                       </button>
                     )
                   )}
-                  {chat.isArchived ? (
-                    onUnarchiveChat && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onUnarchiveChat(chat.id)
-                          setMenuOpenId(null)
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel transition-colors"
-                      >
-                        <ArchiveOutIcon className="h-5 w-5 shrink-0" />
-                        Desarchivar
-                      </button>
-                    )
-                  ) : (
-                    onArchiveChat && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onArchiveChat(chat.id)
-                          setMenuOpenId(null)
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel transition-colors"
-                      >
-                        <ArchiveIcon className="h-5 w-5 shrink-0" />
-                        Archivar
-                      </button>
-                    )
-                  )}
-                  {onClearChat && (
+                  {onClearConversation && (
                     <button
                       type="button"
                       onClick={() => {
                         setMenuOpenId(null)
-                        setClearConfirmChatId(chat.id)
+                        setClearConfirmConversationId(conversation.id)
                       }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
                     >
                       <TrashRowIcon className="h-5 w-5 shrink-0" />
                       Borrar conversación
@@ -360,25 +331,25 @@ export function ChatList({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      <header className="flex shrink-0 items-center gap-2 border-b border-bitchat-border p-3 sm:p-4 safe-t safe-l safe-r">
+      <header className="flex shrink-0 items-center gap-2 border-b border-talkapp-border p-3 sm:p-4 safe-t safe-l safe-r">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bitchat-cyan font-bold text-bitchat-blue-dark text-lg overflow-hidden">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-talkapp-primary font-bold text-talkapp-on-primary text-lg overflow-hidden">
             {currentUserAvatar ? (
               <img src={currentUserAvatar.startsWith('http') ? currentUserAvatar : `${env.apiUrl.replace(/\/$/, '')}${currentUserAvatar.startsWith('/') ? '' : '/'}${currentUserAvatar}`} alt="" className="w-full h-full object-cover" />
             ) : (
-              'b'
+              'T'
             )}
           </div>
           <div className="min-w-0 flex-1 flex flex-col justify-center">
             <span className="font-semibold text-lg truncate">
-              <span className="text-bitchat-blue-mid">Bit</span><span className="text-bitchat-cyan">Chat</span>
+              <span className="text-talkapp-primary">TalkApp</span>
             </span>
             {onEditProfile ? (
-              <button type="button" onClick={onEditProfile} className="truncate block text-xs text-bitchat-fg/80 hover:text-bitchat-cyan text-left w-full">
+              <button type="button" onClick={onEditProfile} className="truncate block text-xs text-talkapp-fg/80 hover:text-talkapp-primary text-left w-full">
                 {currentUserName}
               </button>
             ) : (
-              <p className="truncate text-xs text-bitchat-fg/80">{currentUserName}</p>
+              <p className="truncate text-xs text-talkapp-fg/80">{currentUserName}</p>
             )}
           </div>
         </div>
@@ -386,7 +357,7 @@ export function ChatList({
           <button
             type="button"
             onClick={onToggleTheme}
-            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-cyan transition-colors"
+            className="rounded-lg p-2 text-talkapp-fg-muted hover:bg-talkapp-panel hover:text-talkapp-primary transition-colors"
             title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
             aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
           >
@@ -398,7 +369,7 @@ export function ChatList({
             ref={headerMenuRef}
             type="button"
             onClick={() => setHeaderMenuOpen((v) => !v)}
-            className="rounded-lg p-2 text-bitchat-fg-muted hover:bg-bitchat-panel hover:text-bitchat-fg transition-colors"
+            className="rounded-lg p-2 text-talkapp-fg-muted hover:bg-talkapp-panel hover:text-talkapp-fg transition-colors"
             title="Opciones"
             aria-label="Opciones"
           >
@@ -407,7 +378,7 @@ export function ChatList({
           {headerMenuOpen && headerMenuStyle && createPortal(
             <div
               ref={headerMenuDropdownRef}
-              className="fixed z-[100] w-48 rounded-lg border border-bitchat-border bg-bitchat-sidebar py-1 shadow-xl"
+              className="fixed z-[100] w-48 rounded-lg border border-talkapp-border bg-talkapp-sidebar py-1 shadow-xl"
               style={{ top: headerMenuStyle.top, left: headerMenuStyle.left }}
             >
               {onCreateGroup && (
@@ -417,23 +388,23 @@ export function ChatList({
                     setShowCreateGroup(true)
                     setHeaderMenuOpen(false)
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel"
                 >
                   <GroupIcon />
                   Nuevo grupo
                 </button>
               )}
-              {onOpenFriends && (
+              {onOpenContacts && (
                 <button
                   type="button"
                   onClick={() => {
-                    onOpenFriends()
+                    onOpenContacts()
                     setHeaderMenuOpen(false)
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-bitchat-panel"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel"
                 >
                   <PeopleIcon />
-                  Amigos
+                  Contactos
                 </button>
               )}
               {onLogout && (
@@ -443,7 +414,7 @@ export function ChatList({
                     onLogout()
                     setHeaderMenuOpen(false)
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bitchat-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
                 >
                   <LogoutIcon />
                   Cerrar sesión
@@ -455,126 +426,43 @@ export function ChatList({
         </div>
       </header>
 
-      <div className="flex shrink-0 flex-col gap-2 border-b border-bitchat-border px-5 py-3 safe-l safe-r sm:px-6 md:px-6">
-        <div className="flex min-w-0 items-center gap-2 rounded-xl border border-bitchat-border bg-bitchat-panel pl-3 pr-3 focus-within:border-bitchat-cyan focus-within:ring-1 focus-within:ring-bitchat-cyan/50">
-          <span className="shrink-0 text-bitchat-fg-muted" aria-hidden>
-            <SearchIcon />
-          </span>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar un chat o iniciar uno nuevo"
-            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-bitchat-fg placeholder-bitchat-fg-muted focus:outline-none"
-            aria-label="Buscar chat"
-          />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setChatFilter('all')}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              chatFilter === 'all'
-                ? 'bg-bitchat-cyan text-bitchat-blue-dark'
-                : 'bg-bitchat-panel text-bitchat-fg-muted hover:bg-bitchat-panel/80 hover:text-bitchat-fg'
-            }`}
-          >
-            Todos
-          </button>
-          <button
-            type="button"
-            onClick={() => setChatFilter('unread')}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              chatFilter === 'unread'
-                ? 'bg-bitchat-cyan text-bitchat-blue-dark'
-                : 'bg-bitchat-panel text-bitchat-fg-muted hover:bg-bitchat-panel/80 hover:text-bitchat-fg'
-            }`}
-          >
-            No leídos
-          </button>
-        </div>
-      </div>
-
       <div className="chat-messages-scroll overscroll-behavior-contain flex-1 min-h-0 overflow-y-auto">
-        {chatsLoading ? (
-          <div className="flex items-center justify-center p-6 text-bitchat-fg-muted text-sm">
+        {conversationsLoading ? (
+          <div className="flex items-center justify-center p-6 text-talkapp-fg-muted text-sm">
             Cargando conversaciones…
           </div>
-        ) : mainChats.length === 0 && archivedChats.length === 0 ? (
+        ) : conversations.length === 0 ? (
           <div className="p-6 text-center text-slate-500 text-sm">
-            No hay conversaciones. Abre Amigos y chatea con alguien.
-          </div>
-        ) : filteredMainChats.length === 0 ? (
-          <div className="p-6 text-center text-bitchat-fg-muted text-sm">
-            {searchLower
-              ? 'Ningún chat coincide con la búsqueda.'
-              : chatFilter === 'unread'
-                ? 'No hay chats con mensajes no leídos.'
-                : 'No hay conversaciones.'}
+            No hay conversaciones. Abre Contactos y inicia una conversación.
           </div>
         ) : (
-          <>
-            <ul className="divide-y divide-bitchat-border">
-              {filteredMainChats.map(renderChatRow)}
-            </ul>
-            {archivedChats.length > 0 && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowArchived(!showArchived)}
-                  className="flex w-full items-center gap-2 px-4 py-3 text-sm text-bitchat-fg-muted hover:bg-bitchat-panel/50"
-                >
-                  <ChevronIcon className={`w-4 h-4 transition-transform ${showArchived ? 'rotate-90' : ''}`} />
-                  Archivados ({archivedChats.length})
-                </button>
-                {showArchived && (
-                  <ul className="divide-y divide-bitchat-border">
-                    {archivedChats.map(renderChatRow)}
-                  </ul>
-                )}
-              </>
-            )}
-          </>
+          <ul className="divide-y divide-talkapp-border">
+            {conversations.map(renderConversationRow)}
+          </ul>
         )}
       </div>
 
       {showCreateGroup && onCreateGroup && (
-        <CreateGroupModal
+        <CreateConversationModal
           onClose={() => setShowCreateGroup(false)}
           onCreate={onCreateGroup}
         />
       )}
 
-      {clearConfirmChatId && onClearChat && (
+      {clearConfirmConversationId && onClearConversation && (
         <ConfirmModal
           title="Borrar conversación"
           message="Los mensajes se ocultarán solo para ti. Los demás seguirán viendo el historial."
           confirmLabel="Borrar"
           danger
           onConfirm={() => {
-            onClearChat(clearConfirmChatId)
-            setClearConfirmChatId(null)
+            onClearConversation(clearConfirmConversationId)
+            setClearConfirmConversationId(null)
           }}
-          onCancel={() => setClearConfirmChatId(null)}
+          onCancel={() => setClearConfirmConversationId(null)}
         />
       )}
     </div>
-  )
-}
-
-function SearchIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-      <path fillRule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clipRule="evenodd" />
-    </svg>
-  )
-}
-
-function PinIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M16.5 3.75a3.75 3.75 0 0 0-2.25 6.72 3.75 3.75 0 0 0 1.5 2.28v7.5h3v-7.5a3.75 3.75 0 0 0 1.5-2.28 3.75 3.75 0 0 0-2.25-6.72ZM12 15a3 3 0 0 1-3-3V6a3 3 0 1 1 6 0v6a3 3 0 0 1-3 3Z" clipRule="evenodd" />
-    </svg>
   )
 }
 
@@ -582,25 +470,6 @@ function DotsIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
       <path fillRule="evenodd" d="M10.5 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" clipRule="evenodd" />
-    </svg>
-  )
-}
-
-function ArchiveIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path d="M3.375 3C2.339 3 1.5 3.84 1.5 4.875v.75c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875v-.75C20.5 3.839 19.66 3 18.625 3H3.375Z" />
-      <path fillRule="evenodd" d="m3.087 9 .54 9.176A3 3 0 0 0 6.62 21h10.757a3 3 0 0 0 2.995-2.824L20.913 9H3.087Zm6.163 3.75A.75.75 0 0 1 10 12h4a.75.75 0 0 1 0 1.5h-4a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-    </svg>
-  )
-}
-
-function ArchiveOutIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path d="M3.375 3C2.339 3 1.5 3.84 1.5 4.875v.75c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875v-.75C20.5 3.839 19.66 3 18.625 3H3.375Z" />
-      <path fillRule="evenodd" d="M12 9.75a.75.75 0 0 1 .75.75v6.75a.75.75 0 0 1-1.5 0V10.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
-      <path fillRule="evenodd" d="M15.75 12a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5h-3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
     </svg>
   )
 }
@@ -613,18 +482,29 @@ function TrashRowIcon({ className }: { className?: string }) {
   )
 }
 
-function GroupIcon() {
+function MuteIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-      <path fillRule="evenodd" d="M12 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm4-10c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm0 6c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm0 6c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm4-10c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm0 6c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm0 6c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06Z" />
+      <path fillRule="evenodd" d="M3.53 3.53a.75.75 0 0 1 1.06 0l14 14a.75.75 0 0 1-1.06 1.06L3.53 4.59a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
     </svg>
   )
 }
 
-function ChevronIcon({ className }: { className?: string }) {
+function VolumeOnIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M16.28 11.47a.75.75 0 0 1 0 1.06l-7.5 7.5a.75.75 0 0 1-1.06-1.06L14.69 12 7.72 5.03a.75.75 0 0 1 1.06-1.06l7.5 7.5Z" clipRule="evenodd" />
+      <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06Z" />
+      <path fillRule="evenodd" d="M18.584 5.106a.75.75 0 0 1 1.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 0 1-1.06-1.06 8.25 8.25 0 0 0 0-11.668.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+      <path fillRule="evenodd" d="M15.932 7.757a.75.75 0 0 1 1.061 0 6 6 0 0 1 0 8.486.75.75 0 0 1-1.06-1.061 4.5 4.5 0 0 0 0-6.364.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function GroupIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path fillRule="evenodd" d="M12 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm4-10c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm0 6c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm0 6c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm4-10c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm0 6c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Zm0 6c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2Z" clipRule="evenodd" />
     </svg>
   )
 }

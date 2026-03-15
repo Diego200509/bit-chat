@@ -11,7 +11,10 @@ const userSchema = new mongoose.Schema(
     isOnline: { type: Boolean, default: false },
     lastSeen: { type: Date, default: null },
     visibility: { type: String, enum: ['visible', 'invisible'], default: 'visible' },
+    status: { type: String, trim: true, default: null, maxlength: 80 },
     blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    resetPasswordToken: { type: String, default: null, select: false },
+    resetPasswordExpires: { type: Date, default: null, select: false },
   },
   { timestamps: true }
 );

@@ -1,38 +1,54 @@
 import { useState, type FormEvent } from 'react'
+import * as api from '../../lib/api'
 
-interface LoginFormProps {
-  onSubmit: (email: string, password: string) => Promise<void>
-  onSwitchToRegister: () => void
-  onSwitchToForgot?: () => void
-  error: string | null
-  clearError: () => void
+interface ForgotPasswordFormProps {
+  onBackToLogin: () => void
 }
 
-export function LoginForm({
-  onSubmit,
-  onSwitchToRegister,
-  onSwitchToForgot,
-  error,
-  clearError,
-}: LoginFormProps) {
+export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    clearError()
+    setError(null)
     setLoading(true)
     try {
-      await onSubmit(email.trim(), password)
+      await api.requestPasswordReset(email.trim())
+      setSent(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al enviar')
     } finally {
       setLoading(false)
     }
   }
 
+  if (sent) {
+    return (
+      <div className="flex flex-col gap-4 w-full max-w-sm">
+        <h2 className="text-xl font-semibold text-talkapp-primary mb-1">Revisa tu correo</h2>
+        <p className="text-sm text-talkapp-fg-muted">
+          Si el correo está registrado, recibirás un enlace para restablecer tu contraseña. Revisa también la carpeta de spam.
+        </p>
+        <button
+          type="button"
+          onClick={onBackToLogin}
+          className="mt-2 rounded-xl bg-talkapp-primary text-talkapp-on-primary font-semibold py-2.5 hover:bg-talkapp-accent focus:outline-none focus:ring-2 focus:ring-talkapp-primary"
+        >
+          Volver a iniciar sesión
+        </button>
+      </div>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-sm">
-      <h2 className="text-xl font-semibold text-talkapp-primary mb-1">Iniciar sesión</h2>
+      <h2 className="text-xl font-semibold text-talkapp-primary mb-1">Recuperar contraseña</h2>
+      <p className="text-sm text-talkapp-fg-muted">
+        Indica el email de tu cuenta y te enviaremos un enlace para restablecer la contraseña.
+      </p>
       {error && (
         <div
           className="text-sm text-red-400 bg-red-900/30 border border-red-500/50 rounded-lg px-3 py-2"
@@ -53,44 +69,20 @@ export function LoginForm({
           placeholder="tu@email.com"
         />
       </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-sm text-talkapp-fg-muted">Contraseña</span>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-          className="rounded-xl bg-talkapp-panel border border-talkapp-border px-4 py-2.5 text-talkapp-fg placeholder-talkapp-fg-muted focus:outline-none focus:ring-2 focus:ring-talkapp-primary/50 focus:border-talkapp-primary"
-          placeholder="••••••••"
-        />
-      </label>
       <button
         type="submit"
         disabled={loading}
         className="mt-2 rounded-xl bg-talkapp-primary text-talkapp-on-primary font-semibold py-2.5 hover:bg-talkapp-accent focus:outline-none focus:ring-2 focus:ring-talkapp-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {loading ? 'Entrando…' : 'Entrar'}
+        {loading ? 'Enviando…' : 'Enviar enlace'}
       </button>
-      {onSwitchToForgot && (
-        <p className="text-sm text-talkapp-fg-muted text-center">
-          <button
-            type="button"
-            onClick={onSwitchToForgot}
-            className="text-talkapp-primary hover:underline"
-          >
-            ¿Olvidaste tu contraseña?
-          </button>
-        </p>
-      )}
       <p className="text-sm text-talkapp-fg-muted text-center mt-2">
-        ¿No tienes cuenta?{' '}
         <button
           type="button"
-          onClick={onSwitchToRegister}
+          onClick={onBackToLogin}
           className="text-talkapp-primary hover:underline"
         >
-          Regístrate
+          Volver a iniciar sesión
         </button>
       </p>
     </form>

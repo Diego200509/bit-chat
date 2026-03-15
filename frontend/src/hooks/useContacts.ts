@@ -3,10 +3,10 @@ import { socket } from '../lib/socket'
 import { SOCKET_EVENTS } from '../constants/socket'
 import * as api from '../lib/api'
 
-export function useFriends() {
-  const [friends, setFriends] = useState<api.FriendItem[]>([])
-  const [sent, setSent] = useState<api.FriendItem[]>([])
-  const [received, setReceived] = useState<api.FriendItem[]>([])
+export function useContacts() {
+  const [friends, setFriends] = useState<api.ContactItem[]>([])
+  const [sent, setSent] = useState<api.ContactItem[]>([])
+  const [received, setReceived] = useState<api.ContactItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -14,7 +14,7 @@ export function useFriends() {
     const onProfileUpdated = (payload: { userId?: string; displayName?: string; avatar?: string | null }) => {
       const { userId: uId, displayName: newName, avatar: newAvatar } = payload
       if (!uId) return
-      const updateItem = (list: api.FriendItem[]) =>
+      const updateItem = (list: api.ContactItem[]) =>
         list.map((f) =>
           f.userId === uId
             ? { ...f, ...(newName != null && { name: newName }), ...(newAvatar !== undefined && { avatar: newAvatar ?? undefined }) }
@@ -33,12 +33,12 @@ export function useFriends() {
   const refresh = useCallback(async () => {
     setError(null)
     try {
-      const data = await api.getFriends()
+      const data = await api.getContacts()
       setFriends(data.friends)
       setSent(data.sent)
       setReceived(data.received)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al cargar')
+      setError(e instanceof Error ? e.message : 'Error al cargar contactos')
     } finally {
       setLoading(false)
     }
@@ -50,7 +50,7 @@ export function useFriends() {
 
   const sendRequest = useCallback(async (addresseeId: string) => {
     setError(null)
-    await api.sendFriendRequest(addresseeId)
+    await api.sendContactRequest(addresseeId)
     await refresh()
   }, [refresh])
 
