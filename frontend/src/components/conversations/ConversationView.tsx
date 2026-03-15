@@ -299,34 +299,39 @@ export function ConversationView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-talkapp-bg">
-      <header className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-talkapp-border bg-talkapp-panel p-3 safe-t safe-l safe-r md:p-4">
+      <header className="flex shrink-0 items-center gap-2 sm:gap-3 bg-talkapp-panel/80 backdrop-blur-xl p-3 safe-t safe-l safe-r md:p-4" style={{borderBottom:'1px solid rgba(123,44,191,0.12)'}}>
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-talkapp-fg-muted hover:bg-talkapp-sidebar hover:text-talkapp-fg active:opacity-80 md:hidden touch-manipulation"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-talkapp-fg-muted hover:bg-white/8 hover:text-talkapp-fg active:opacity-80 md:hidden touch-manipulation transition-colors"
             aria-label="Volver a conversaciones"
           >
             <BackIcon />
           </button>
         )}
-        <div className="flex min-w-0 flex-1 items-center gap-2 pl-2 sm:pl-4 md:pl-5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-talkapp-on-primary text-talkapp-primary font-semibold">
-                {(() => {
-                  const avatarUrl = conversation.avatar || conversation.image
-                  const url = avatarUrl && avatarUrl.trim()
-                    ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')
-                        ? avatarUrl
-                        : `${env.apiUrl.replace(/\/$/, '')}${avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`}`)
-                    : null
-                  return url
-                    ? <img src={url} alt="" className="h-full w-full object-cover" />
-                    : conversation.name.charAt(0).toUpperCase()
-                })()}
+        <div className="flex min-w-0 flex-1 items-center gap-3 pl-1 sm:pl-3 md:pl-4">
+              <div className="relative flex-shrink-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-talkapp-primary text-white font-semibold">
+                  {(() => {
+                    const avatarUrl = conversation.avatar || conversation.image
+                    const url = avatarUrl && avatarUrl.trim()
+                      ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('data:')
+                          ? avatarUrl
+                          : `${env.apiUrl.replace(/\/$/, '')}${avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`}`)
+                      : null
+                    return url
+                      ? <img src={url} alt="" className="h-full w-full object-cover" />
+                      : conversation.name.charAt(0).toUpperCase()
+                  })()}
+                </div>
+                {conversation.otherUserId && otherUserOnline && (
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-talkapp-panel" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate font-semibold text-talkapp-fg">{conversation.name}</h2>
-                <p className="text-xs text-talkapp-fg/80 truncate">
+                <h2 className="truncate font-semibold text-[0.95rem] text-talkapp-fg tracking-tight">{conversation.name}</h2>
+                <p className="text-[0.72rem] text-talkapp-fg-muted truncate">
                   {!conversation.isRemovedFromGroup && typingUsers.length > 0
                     ? typingUsers.length === 1
                       ? `${typingUsers[0].userName} está escribiendo...`
@@ -344,7 +349,7 @@ export function ConversationView({
                     ref={chatHeaderMenuRef}
                     type="button"
                     onClick={() => setChatHeaderMenuOpen((v) => !v)}
-                    className="rounded-lg p-2 text-talkapp-fg/70 hover:bg-talkapp-sidebar hover:text-talkapp-primary"
+                    className="rounded-xl p-2 text-talkapp-fg/60 hover:bg-white/8 hover:text-talkapp-primary transition-colors"
                     title="Más opciones"
                     aria-label="Más opciones"
                     aria-expanded={chatHeaderMenuOpen}
@@ -366,7 +371,7 @@ export function ConversationView({
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel"
                         >
-                          <UsersIcon className="h-5 w-5" />
+                          <UsersIcon className="h-4 w-4" />
                           Gestionar grupo
                         </button>
                       )}
@@ -381,9 +386,9 @@ export function ConversationView({
                           className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel"
                         >
                           {blockedUserIds.includes(conversation.otherUserId) ? (
-                            <><UnblockIcon /> Desbloquear</>
+                            <><UnblockIcon />Desbloquear</>
                           ) : (
-                            <><BlockIcon /> Bloquear</>
+                            <><BlockIcon />Bloquear</>
                           )}
                         </button>
                       )}
@@ -405,7 +410,7 @@ export function ConversationView({
                           disabled={!!outgoingCall}
                           className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel disabled:opacity-50"
                         >
-                          <VideoCallIcon className="h-5 w-5" />
+                          <VideoCallIcon className="h-4 w-4" />
                           Videollamada
                         </button>
                       )}
@@ -418,7 +423,7 @@ export function ConversationView({
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
                         >
-                          <TrashIcon className="h-5 w-5" />
+                          <TrashIcon className="h-4 w-4" />
                           Borrar conversación
                         </button>
                       )}
@@ -434,12 +439,12 @@ export function ConversationView({
         ref={messagesContainerRef}
         className="chat-messages-scroll min-h-0 flex-1 overflow-y-auto overscroll-behavior-contain safe-l safe-r"
       >
-        <div className="px-5 py-4 min-h-full md:px-10 md:py-5">
+        <div className="px-4 py-5 min-h-full md:px-8 md:py-6">
         {messagesChronological.map((message) => (
           <div
             key={message.id}
             id={`msg-${message.id}`}
-            className="transition-[box-shadow] duration-300"
+            className="mb-1 transition-[box-shadow] duration-300"
           >
             <Message
               message={message}
@@ -666,7 +671,7 @@ function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-talkapp-border p-4">
-          <h3 className="font-semibold text-talkapp-fg">Gestionar grupo</h3>
+          <h3 className="font-semibold text-talkapp-fg">Administrar grupo</h3>
           <button
             type="button"
             onClick={onClose}
@@ -687,7 +692,10 @@ function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated
               {conversation.image ? (
                 <img src={fullGroupImageUrl(conversation.image)} alt="" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-2xl text-slate-500">👥</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7 text-talkapp-fg-muted">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
               )}
             </button>
             <input
@@ -698,21 +706,21 @@ function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated
               onChange={handleGroupImageChange}
             />
             <div className="flex flex-col gap-1 min-w-0">
-              <p className="text-sm font-medium text-talkapp-fg">Foto del grupo</p>
-              <p className="text-xs text-talkapp-fg-muted">{uploadingImage ? 'Subiendo…' : 'Clic para cambiar'}</p>
+              <p className="text-sm font-medium text-talkapp-fg">Imagen del grupo</p>
+              <p className="text-xs text-talkapp-fg-muted">{uploadingImage ? 'Subiendo imagen…' : 'Toca para cambiar'}</p>
               {conversation.image && (
                 <button
                   type="button"
                   onClick={handleRemoveGroupImage}
                   className="text-xs text-red-400 hover:text-red-300 focus:outline-none focus:underline text-left"
                 >
-                  Quitar foto
+                  Eliminar imagen
                 </button>
               )}
               {imageError && <p className="text-xs text-red-400">{imageError}</p>}
             </div>
           </div>
-          <p className="mb-3 text-sm text-talkapp-fg-muted">{conversation.name}</p>
+          <p className="mb-3 text-sm font-semibold text-talkapp-fg-muted uppercase tracking-wider text-xs">Miembros</p>
           <div className="space-y-2">
             {(conversation.participants ?? []).map((p) => (
               <div
@@ -728,7 +736,7 @@ function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated
                   )}
                   {removedSet.has(p.id) && (
                     <span className="ml-2 rounded bg-talkapp-fg-muted/20 px-1.5 py-0.5 text-xs text-talkapp-fg-muted">
-                      Eliminado
+                      Removido
                     </span>
                   )}
                 </div>
@@ -749,7 +757,7 @@ function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated
                       disabled={!!removingId}
                       className="shrink-0 rounded-lg px-2 py-1 text-sm text-red-400 hover:bg-red-500/15 disabled:opacity-50"
                     >
-                      {removingId === p.id ? '…' : 'Eliminar'}
+                      {removingId === p.id ? '…' : 'Quitar'}
                     </button>
                   )
                 )}
@@ -762,24 +770,24 @@ function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated
               onClick={() => setShowAddList(true)}
               className="mt-4 w-full rounded-lg border border-talkapp-border bg-talkapp-panel py-2.5 text-sm font-medium text-talkapp-fg hover:bg-talkapp-bg"
             >
-              Añadir participante
+              Agregar participante
             </button>
           ) : (
             <div className="mt-4 rounded-lg border border-talkapp-border bg-talkapp-panel p-3">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-talkapp-fg">Elegir contacto</span>
+                <span className="text-sm font-medium text-talkapp-fg">Agregar contacto</span>
                 <button
                   type="button"
                   onClick={() => setShowAddList(false)}
                   className="text-sm text-talkapp-fg-muted hover:text-talkapp-fg"
                 >
-                  Cerrar
+                  Cancelar
                 </button>
               </div>
               {loadingContacts ? (
                 <p className="py-2 text-sm text-talkapp-fg-muted">Cargando…</p>
               ) : contacts.length === 0 ? (
-                <p className="py-2 text-sm text-talkapp-fg-muted">No hay contactos disponibles para añadir.</p>
+                <p className="py-2 text-sm text-talkapp-fg-muted">No hay contactos para agregar.</p>
               ) : (
                 <ul className="chat-messages-scroll max-h-40 overflow-y-auto space-y-1">
                   {contacts.map((c) => (
@@ -806,48 +814,56 @@ function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated
 
 function CloseIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06 6.53 18.53a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   )
 }
 
 function UsersIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M8.25 6.75a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0ZM15.75 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM2.25 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM6.75 15.75a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0ZM3.75 18.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM9.75 18.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   )
 }
 
 function BlockIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-      <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM3.75 12a8.25 8.25 0 0 1 14.39-5.28l-9.67 9.67A8.22 8.22 0 0 1 3.75 12Zm16.5 0a8.22 8.22 0 0 1-3.97 6.61l-9.67-9.67A8.25 8.25 0 0 1 20.25 12Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
     </svg>
   )
 }
 
 function UnblockIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-      <path fillRule="evenodd" d="M15.75 1.5a6.75 6.75 0 0 0-6.651 7.906c.067.39.032.717.221 1.093l.873 2.717a.75.75 0 0 0 1.261.44l2.713-3.452a.75.75 0 0 0 .14-.494 6.75 6.75 0 0 0 1.343-10.21ZM12 15a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 9.9-1" />
     </svg>
   )
 }
 
 function BackIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
-      <path fillRule="evenodd" d="M7.72 12.53a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 1 1 1.06 1.06L9.31 12l6.97 6.97a.75.75 0 1 1-1.06 1.06l-7.5-7.5Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+      <polyline points="15 18 9 12 15 6" />
     </svg>
   )
 }
 
 function DotsVerticalIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M10.5 6a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm0 6a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm0 6a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="5" r="1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="19" r="1" fill="currentColor" />
     </svg>
   )
 }
@@ -862,8 +878,11 @@ function VideoCallIcon({ className }: { className?: string }) {
 
 function TrashIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 0 1 3.878.512.75.75 0 1 1-.256 1.478l-.209-.035-1.005 13.07a3 3 0 0 1-2.991 2.77H8.084a3 3 0 0 1-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 0 1-.256-1.478A48.567 48.567 0 0 1 7.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 0 1 3.369 0c1.603.051 2.815 1.387 2.815 2.951Zm-6.136-1.452a51.196 51.196 0 0 1 3.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 0 0-6 0v-.113c0-.794.609-1.428 1.364-1.452Zm-.355 5.945a.75.75 0 1 0-1.5.058l.347 9a.75.75 0 1 0 1.499-.058l-.346-9Zm5.48.058a.75.75 0 1 0-1.498-.058l-.347 9a.75.75 0 0 0 1.5.058l.345-9Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
     </svg>
   )
 }

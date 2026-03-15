@@ -110,7 +110,7 @@ export function MessageInput({
   }, [])
 
   return (
-    <div className="border-t border-talkapp-border bg-talkapp-panel p-2 safe-b safe-l safe-r md:p-3">
+    <div className="border-t border-talkapp-border/50 bg-talkapp-panel/90 px-3 py-3 safe-b safe-l safe-r">
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <input
           ref={fileInputRef}
@@ -131,7 +131,7 @@ export function MessageInput({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled || uploading}
-            className="rounded-full p-2.5 text-talkapp-fg-muted hover:bg-talkapp-sidebar hover:text-talkapp-primary transition-colors disabled:opacity-50"
+            className="rounded-full p-2 text-talkapp-fg-muted hover:text-talkapp-primary transition-colors disabled:opacity-40"
             aria-label="Adjuntar imagen"
             title="Adjuntar imagen"
           >
@@ -143,7 +143,7 @@ export function MessageInput({
             type="button"
             onClick={() => documentInputRef.current?.click()}
             disabled={disabled || uploading}
-            className="rounded-full p-2.5 text-talkapp-fg-muted hover:bg-talkapp-sidebar hover:text-talkapp-primary transition-colors disabled:opacity-50"
+            className="rounded-full p-2 text-talkapp-fg-muted hover:text-talkapp-primary transition-colors disabled:opacity-40"
             aria-label="Adjuntar documento PDF"
             title="Adjuntar documento PDF"
           >
@@ -181,13 +181,13 @@ export function MessageInput({
           }}
           placeholder={placeholder}
           disabled={disabled}
-          className="min-w-0 flex-1 rounded-2xl border border-talkapp-border bg-talkapp-sidebar px-4 py-2.5 text-base text-talkapp-fg placeholder-talkapp-fg-muted focus:border-talkapp-primary focus:outline-none focus:ring-2 focus:ring-talkapp-primary/50 md:text-sm"
+          className="min-w-0 flex-1 rounded-[999px] border border-talkapp-border/60 bg-talkapp-sidebar/80 px-5 py-2.5 text-base text-talkapp-fg placeholder-talkapp-fg-muted focus:border-talkapp-primary/50 focus:outline-none focus:ring-2 focus:ring-talkapp-primary/25 md:text-sm transition-all"
         />
         {text.trim() ? (
           <button
             type="submit"
             disabled={disabled}
-            className="rounded-full bg-talkapp-primary text-talkapp-on-primary p-2.5 hover:bg-talkapp-accent focus:outline-none focus:ring-2 focus:ring-talkapp-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-full bg-talkapp-primary text-white p-2.5 hover:bg-talkapp-accent focus:outline-none focus:ring-2 focus:ring-talkapp-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             aria-label="Enviar mensaje"
           >
             <SendIcon />
@@ -197,7 +197,7 @@ export function MessageInput({
             type="button"
             onClick={recording ? stopRecording : startRecording}
             disabled={disabled || uploading}
-            className={`rounded-full p-2.5 transition-colors focus:outline-none focus:ring-2 focus:ring-talkapp-primary disabled:opacity-50 disabled:cursor-not-allowed ${recording ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30 focus:ring-red-500/50' : 'bg-talkapp-primary text-talkapp-on-primary hover:bg-talkapp-accent'}`}
+            className={`rounded-full p-2.5 transition-all focus:outline-none focus:ring-2 focus:ring-talkapp-primary disabled:opacity-50 disabled:cursor-not-allowed ${recording ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 focus:ring-red-500/50' : 'bg-talkapp-primary text-white hover:bg-talkapp-accent'}`}
             aria-label={recording ? 'Detener grabación' : 'Nota de voz'}
             title={recording ? 'Detener grabación' : 'Nota de voz'}
           >
@@ -207,7 +207,7 @@ export function MessageInput({
           <button
             type="submit"
             disabled
-            className="rounded-full bg-talkapp-primary text-talkapp-on-primary p-2.5 opacity-50 cursor-not-allowed"
+            className="rounded-full bg-talkapp-primary text-white p-2.5 opacity-40 cursor-not-allowed"
             aria-label="Enviar mensaje"
           >
             <SendIcon />
@@ -220,8 +220,8 @@ export function MessageInput({
 
 function AttachIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-      <path fillRule="evenodd" d="M18.97 3.659a2.25 2.25 0 0 0-3.182 0l-10.94 10.94a3.75 3.75 0 1 0 5.304 5.303l7.693-7.693a.75.75 0 0 1 1.06 1.06l-7.693 7.694a5.25 5.25 0 1 1-7.424-7.425l10.94-10.94a.75.75 0 0 1 1.061 1.06Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
     </svg>
   )
 }
@@ -237,26 +237,32 @@ function SpinnerIcon() {
 
 function DocumentIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-      <path d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0 0 16.5 9h-1.875a1.875 1.875 0 0 1-1.875-1.875V5.25A3.75 3.75 0 0 0 9 1.5H5.625Z" />
-      <path d="M12.971 1.816A5.23 5.23 0 0 1 14.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 0 1 3.434 1.279 9.768 9.768 0 0 0-6.963-6.963Z" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
     </svg>
   )
 }
 
 function MicIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-      <path d="M8.25 4.5a3.75 3.75 0 1 1 7.5 0v8.25a3.75 3.75 0 1 1-7.5 0V4.5Z" />
-      <path d="M6 10.5a.75.75 0 0 1 .75.75v1.5a5.25 5.25 0 1 0 10.5 0v-1.5a.75.75 0 0 1 1.5 0v1.5a6.751 6.751 0 0 1-6 6.709v2.291h3a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1 0-1.5h3v-2.291a6.751 6.751 0 0 1-6-6.709v-1.5A.75.75 0 0 1 6 10.5Z" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
     </svg>
   )
 }
 
 function SendIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-      <path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905h13.42a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.52 60.52 0 0 0 18.445-8.987.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
   )
 }

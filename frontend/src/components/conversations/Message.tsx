@@ -340,18 +340,23 @@ export function Message({ message, currentUserId, showSenderName = false, onDele
               {message.senderName}
             </p>
           )}
-          <div className={`rounded-2xl px-4 py-2.5 max-w-full ${bubbleClass}`}>
+          <div className={`rounded-[18px] px-4 py-2.5 max-w-full ${
+            alignRight
+              ? 'rounded-tr-[4px] bg-talkapp-primary text-talkapp-on-primary'
+              : 'rounded-tl-[4px] bg-talkapp-received text-talkapp-received-fg'
+          }`}>
             <div className="flex items-start gap-2">
               <span className={`flex-shrink-0 ${mutedClass}`} aria-hidden>
                 <DeletedMessageIcon />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm italic">{text}</p>
-                <p className={`text-[10px] ${mutedClass} mt-0.5 text-right`}>
-                  {formatTime(message.timestamp)}
-                </p>
               </div>
             </div>
+          </div>
+          {/* Hora fuera de la burbuja */}
+          <div className={`flex items-center gap-1 mt-0.5 px-1 ${alignRight ? 'justify-end' : 'justify-start'}`}>
+            <span className="text-[10px] text-talkapp-fg-muted">{formatTime(message.timestamp)}</span>
           </div>
         </div>
       </div>
@@ -362,19 +367,20 @@ export function Message({ message, currentUserId, showSenderName = false, onDele
   const showGroupAvatar = showSenderName && !isOwn
 
   return (
-    <div className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} mb-2 group overflow-visible ${showGroupAvatar ? 'gap-2 items-end' : ''}`}>
+    <div className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} mb-1 group overflow-visible ${showGroupAvatar ? 'gap-2 items-end' : ''}`}>
       {showGroupAvatar && <SenderAvatar avatar={message.senderAvatar} name={message.senderName} />}
-      <div className="relative min-w-0 max-w-[85%] sm:max-w-[75%] overflow-visible">
+      <div className="relative min-w-0 max-w-[80%] sm:max-w-[68%] overflow-visible">
         {showName && (
-          <p className="text-[11px] text-talkapp-fg-muted mb-0.5 px-1 font-medium" aria-label={`De ${message.senderName}`}>
+          <p className="text-[11px] text-talkapp-primary/80 mb-0.5 px-1 font-semibold" aria-label={`De ${message.senderName}`}>
             {message.senderName}
           </p>
         )}
+        {/* Burbuja */}
         <div
-          className={`rounded-2xl overflow-visible px-4 py-2 ${
+          className={`rounded-[20px] overflow-visible px-4 py-2.5 ${
             isOwn
-              ? 'rounded-br-md bg-talkapp-primary text-talkapp-on-primary'
-              : 'rounded-bl-md bg-talkapp-received text-talkapp-received-fg'
+              ? 'rounded-tr-[5px] bg-talkapp-primary text-talkapp-on-primary'
+              : 'rounded-tl-[5px] bg-talkapp-received text-talkapp-received-fg'
           }`}
         >
           {type === 'image' && message.imageUrl && (
@@ -408,32 +414,33 @@ export function Message({ message, currentUserId, showSenderName = false, onDele
           {(type === 'text' || type === 'emoji' || (type === 'image' && message.text) || (type === 'document' && message.text) || (type === 'voice' && message.text)) && (
             <LongTextContent text={message.text || ''} isOwn={isOwn} />
           )}
-          <div className="flex items-center justify-end gap-1 mt-1 flex-wrap">
-            {message.editedAt != null && message.editedAt > 0 && (
-              <span className={`text-[10px] ${isOwn ? 'text-talkapp-on-primary/70' : 'text-talkapp-received-muted'}`}>editado</span>
-            )}
-            <p
-              className={`text-[10px] ${isOwn ? 'text-talkapp-on-primary/70' : 'text-talkapp-received-muted'}`}
-            >
-              {formatTime(message.timestamp)}
-            </p>
-            {isOwn && (
-              <span
-                className="text-[10px] shrink-0"
-                title={messageStatus === 'read' ? 'Visto' : messageStatus === 'delivered' ? 'Entregado' : 'Enviado'}
-                aria-label={messageStatus === 'read' ? 'Visto' : messageStatus === 'delivered' ? 'Entregado' : 'Enviado'}
-              >
-                {messageStatus === 'read' ? (
-                  <DoubleCheckIcon className="text-[#00C78C] drop-shadow-sm" />
-                ) : messageStatus === 'delivered' ? (
-                  <DoubleCheckIcon className="text-white/90" />
-                ) : (
-                  <SingleCheckIcon className="text-white/90" />
-                )}
-              </span>
-            )}
-          </div>
         </div>
+
+        {/* Hora + estado FUERA de la burbuja */}
+        <div className={`flex items-center gap-1 mt-0.5 px-1.5 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+          {message.editedAt != null && message.editedAt > 0 && (
+            <span className="text-[9px] text-talkapp-fg-muted italic">editado</span>
+          )}
+          <span className="text-[10px] text-talkapp-fg-muted">
+            {formatTime(message.timestamp)}
+          </span>
+          {isOwn && (
+            <span
+              className="text-[10px] shrink-0"
+              title={messageStatus === 'read' ? 'Visto' : messageStatus === 'delivered' ? 'Entregado' : 'Enviado'}
+              aria-label={messageStatus === 'read' ? 'Visto' : messageStatus === 'delivered' ? 'Entregado' : 'Enviado'}
+            >
+              {messageStatus === 'read' ? (
+                <DoubleCheckIcon className="text-talkapp-primary drop-shadow-sm" />
+              ) : messageStatus === 'delivered' ? (
+                <DoubleCheckIcon className="text-talkapp-fg-muted" />
+              ) : (
+                <SingleCheckIcon className="text-talkapp-fg-muted" />
+              )}
+            </span>
+          )}
+        </div>
+
         {onDeleteMessage ? (
           <>
               <button
@@ -459,7 +466,7 @@ export function Message({ message, currentUserId, showSenderName = false, onDele
                         setShowMenu(false)
                         setDeleteConfirm('for_me')
                       }}
-                      className="w-full text-left px-3 py-1.5 text-sm text-slate-200 hover:bg-talkapp-panel"
+                      className="w-full text-left px-3 py-1.5 text-sm text-talkapp-fg hover:bg-talkapp-panel"
                     >
                       Eliminar para mí
                     </button>
