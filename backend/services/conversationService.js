@@ -7,13 +7,6 @@ async function getOrCreateConversation(conversationId) {
     const conv = await Conversation.findById(conversationId);
     return conv;
   }
-  if (conversationId === 'chat-1' || conversationId === 'general') {
-    let conv = await Conversation.findOne({ name: 'General', type: 'group' });
-    if (!conv) {
-      conv = await Conversation.create({ name: 'General', type: 'group', participants: [] });
-    }
-    return conv;
-  }
   return null;
 }
 
@@ -59,8 +52,7 @@ async function saveMessage(conversationId, senderId, senderName, opts = {}) {
     voiceUrl: type === 'voice' ? voiceUrl : null,
   });
 
-  const resolvedChatId = (conversationId === 'chat-1' || conversationId === 'general') ? conversationId : conv._id.toString();
-  return messageToPayload(msg, resolvedChatId, name, null, senderAvatar);
+  return messageToPayload(msg, conv._id.toString(), name, null, senderAvatar);
 }
 
 function getRemovedAt(removedAt, userId) {
@@ -162,7 +154,7 @@ async function getMessageHistory(conversationId, limit = 100, currentUserId = nu
   const conv = await getOrCreateConversation(conversationId);
   if (!conv) return [];
 
-  const resolvedChatId = (conversationId === 'chat-1' || conversationId === 'general') ? conversationId : conv._id.toString();
+  const resolvedChatId = conv._id.toString();
 
   let cutOffDate = null;
   if (conv.type === 'group' && currentUserId) {
@@ -257,75 +249,6 @@ async function getConversationsForUser(userId, limit = 50) {
     if (maxCreatedAt) query.createdAt = { $lte: maxCreatedAt };
     const count = await Message.countDocuments(query);
     return count;
-  }
-
-  const general = await Conversation.findOne({ name: 'General', type: 'group' })
-    .populate('participants', 'name nickname avatar')
-    .lean();
-  if (general) {
-    const removedParticipantIdsGeneral = (general.removedParticipantIds || []).map((id) => id.toString());
-    const isRemovedFromGroupGeneral = removedParticipantIdsGeneral.includes(userId);
-    const generalLastMsgQuery = { ...lastMsgQueryBase(general._id) };
-    let generalUnreadCutOff = null;
-    if (isRemovedFromGroupGeneral && general.removedAt) {
-      const cutOff = getRemovedAt(general.removedAt, userId);
-      if (cutOff) {
-        generalLastMsgQuery.createdAt = { $lte: new Date(cutOff) };
-        generalUnreadCutOff = new Date(cutOff);
-      }
-    }
-    const lastMsg = await Message.findOne(generalLastMsgQuery).sort({ createdAt: -1 }).lean();
-    const pinned = (general.pinnedBy || []).some((id) => id.toString() === userId);
-    const isMuted = (general.mutedBy || []).some((id) => id.toString() === userId);
-    const participants = (general.participants || []).map((p) => ({
-      id: p._id.toString(),
-      name: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
-    }));
-    const adminIds = (general.adminIds && general.adminIds.length > 0)
-      ? general.adminIds.map((id) => id.toString())
-      : (general.createdBy ? [general.createdBy.toString()] : []);
-    const isGroupAdmin = adminIds.includes(userId);
-    const removedParticipantIds = removedParticipantIdsGeneral;
-    const isRemovedFromGroup = isRemovedFromGroupGeneral;
-    const lastMessageSenderId = lastMsg?.sender ? lastMsg.sender.toString() : (lastMsg?.senderIdFallback || null);
-    let lastMessageReadBy = (lastMsg?.readBy || []).map((id) => (id && id.toString ? id.toString() : String(id)));
-    let lastMessageDeliveredBy = (lastMsg?.deliveredBy || []).map((id) => (id && id.toString ? id.toString() : String(id)));
-    if (general.removedAt && lastMsg?.createdAt) {
-      const lastMsgDate = new Date(lastMsg.createdAt);
-      lastMessageReadBy = lastMessageReadBy.filter((id) => {
-        if (!removedParticipantIds.includes(id)) return true;
-        const at = getRemovedAt(general.removedAt, id);
-        return at && lastMsgDate <= new Date(at);
-      });
-      lastMessageDeliveredBy = lastMessageDeliveredBy.filter((id) => {
-        if (!removedParticipantIds.includes(id)) return true;
-        const at = getRemovedAt(general.removedAt, id);
-        return at && lastMsgDate <= new Date(at);
-      });
-    } else {
-      lastMessageReadBy = lastMessageReadBy.filter((id) => !removedParticipantIds.includes(id));
-      lastMessageDeliveredBy = lastMessageDeliveredBy.filter((id) => !removedParticipantIds.includes(id));
-    }
-    const unread = await getUnreadCount(general._id, generalUnreadCutOff);
-    list.push({
-      id: 'chat-1',
-      name: 'General',
-      type: 'group',
-      image: general.image,
-      participants,
-      adminIds,
-      isGroupAdmin,
-      isRemovedFromGroup,
-      removedParticipantIds,
-      isPinned: pinned,
-      lastMessage: lastMsg?.text || (lastMsg?.type === 'image' ? 'Imagen' : lastMsg?.type === 'sticker' ? 'Sticker' : lastMsg?.type === 'document' ? 'Documento' : lastMsg?.type === 'voice' ? 'Nota de voz' : ''),
-      lastMessageTime: lastMsg ? new Date(lastMsg.createdAt).getTime() : (general.updatedAt ? new Date(general.updatedAt).getTime() : null),
-      lastMessageSenderId: lastMessageSenderId || undefined,
-      lastMessageReadBy: lastMessageReadBy.length ? lastMessageReadBy : undefined,
-      lastMessageDeliveredBy: lastMessageDeliveredBy.length ? lastMessageDeliveredBy : undefined,
-      isMuted,
-      unread,
-    });
   }
 
   const directConvs = await Conversation.find({ type: 'direct', participants: userObjId })
@@ -502,8 +425,7 @@ async function fetchAndAttachLinkPreview(messageId) {
   });
   const updated = await Message.findById(messageId).populate('sender', 'name nickname avatar').lean();
   const conv = await Conversation.findById(updated.conversation).select('name type').lean();
-  const resolved =
-    conv && conv.name === 'General' && conv.type === 'group' ? 'chat-1' : updated.conversation.toString();
+  const resolved = updated.conversation.toString();
   const getSenderName = (m) => (m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'));
   const getSenderAvatar = (m) => (m.sender && m.sender.avatar ? m.sender.avatar : null);
   return messageToPayload(updated, resolved, getSenderName(updated), null, getSenderAvatar(updated));
@@ -526,8 +448,7 @@ async function markMessageDelivered(messageId, userId) {
   if ((msg.deliveredBy || []).some((id) => id.toString() === idStr)) return null;
   await Message.findByIdAndUpdate(messageId, { $addToSet: { deliveredBy: value } });
   const updated = await Message.findById(messageId).populate('sender', 'name nickname avatar').lean();
-  const resolvedChatId =
-    conv?.name === 'General' && conv?.type === 'group' ? 'chat-1' : msg.conversation.toString();
+  const resolvedChatId = msg.conversation.toString();
   const getSenderName = (m) => (m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'));
   const getSenderAvatar = (m) => (m.sender && m.sender.avatar ? m.sender.avatar : null);
   const removedAt = conv?.type === 'group' ? conv.removedAt : null;
@@ -544,7 +465,7 @@ async function markAllConversationsDeliveredForUser(userId) {
       const removed = (conv.removedParticipantIds || []).map((id) => id.toString());
       if (removed.includes(userId)) continue;
     }
-    const resolvedChatId = (conv.name === 'General' && conv.type === 'group') ? 'chat-1' : conv._id.toString();
+    const resolvedChatId = conv._id.toString();
     const deliveredQuery = {
       conversation: conv._id,
       sender: { $ne: userObjId },
@@ -635,8 +556,7 @@ async function clearConversationForMe(conversationId, userId) {
     { conversation: conv._id, deletedAt: null, deletedFor: { $nin: [userObjId] } },
     { $addToSet: { deletedFor: userObjId } }
   );
-  const resolvedChatId = (conversationId === 'chat-1' || conversationId === 'general') ? conversationId : conv._id.toString();
-  return { chatId: resolvedChatId, modifiedCount: res.modifiedCount };
+  return { chatId: conv._id.toString(), modifiedCount: res.modifiedCount };
 }
 
 function isGroupAdmin(conv, userId) {

@@ -73,7 +73,6 @@ router.post('/group', async (req, res) => {
 });
 
 function resolveConversationId(id, userId) {
-  if (id === 'chat-1') return Conversation.findOne({ name: 'General', type: 'group' });
   return Conversation.findOne({ _id: id, participants: userId });
 }
 
@@ -103,7 +102,7 @@ router.post('/:id/unmute', async (req, res) => {
 
 router.post('/:id/clear', async (req, res) => {
   try {
-    const conversationId = req.params.id === 'chat-1' ? 'chat-1' : req.params.id;
+    const conversationId = req.params.id;
     const result = await clearConversationForMe(conversationId, req.userId);
     if (!result) return res.status(404).json({ error: 'Conversación no encontrada' });
     return res.json(result);

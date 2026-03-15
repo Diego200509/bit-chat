@@ -124,8 +124,8 @@ export function useConversations(userId = DEFAULT_USER_ID, userName = DEFAULT_US
         if (next.length > 0 && !currentChatId) setCurrentChatId(next[0].id)
       })
       .catch(() => {
-        if (!cancelled) setConversations([{ id: 'chat-1', name: 'General', messages: [] }])
-        if (!cancelled && !currentChatId) setCurrentChatId('chat-1')
+        if (!cancelled) setConversations([])
+        if (!cancelled) setCurrentChatId(null)
       })
       .finally(() => {
         if (!cancelled) setConversationsLoading(false)
