@@ -65,7 +65,7 @@ function getReIncorporatedAt(reIncorporatedAt, userId) {
   return typeof reIncorporatedAt.get === 'function' ? reIncorporatedAt.get(userId) : reIncorporatedAt[userId];
 }
 
-function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallback = null, senderAvatar = null, removedAt = null) {
+function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallback = null, senderAvatar = null, removedAt = null, reIncorporatedAt = null) {
   let senderId = null;
   if (msg.sender) {
     senderId = typeof msg.sender === 'object' && msg.sender._id != null
@@ -93,16 +93,15 @@ function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallba
   let readBy = (msg.readBy || []).map((id) => id.toString());
   if (removedAt) {
     const msgDate = msg.createdAt ? new Date(msg.createdAt) : null;
-    deliveredBy = deliveredBy.filter((id) => {
+    const includeInDelivery = (id) => {
       const at = getRemovedAt(removedAt, id);
       if (!at) return true;
+      const reAt = getReIncorporatedAt(reIncorporatedAt, id);
+      if (msgDate && reAt && msgDate >= new Date(reAt)) return true;
       return msgDate && msgDate <= new Date(at);
-    });
-    readBy = readBy.filter((id) => {
-      const at = getRemovedAt(removedAt, id);
-      if (!at) return true;
-      return msgDate && msgDate <= new Date(at);
-    });
+    };
+    deliveredBy = deliveredBy.filter(includeInDelivery);
+    readBy = readBy.filter(includeInDelivery);
   }
   return {
     id: msg._id.toString(),
@@ -235,8 +234,9 @@ async function getMessageHistory(conversationId, limit = 100, currentUserId = nu
   const getSenderName = (m) => (m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'));
   const getSenderAvatar = (m) => (m.sender && m.sender.avatar ? m.sender.avatar : null);
   const removedAtForPayload = conv.type === 'group' ? conv.removedAt : null;
+  const reIncorporatedAtForPayload = conv.type === 'group' ? conv.reIncorporatedAt : null;
 
-  const list1 = messages.map((m) => messageToPayload(m, resolvedChatId, getSenderName(m), null, getSenderAvatar(m), removedAtForPayload));
+  const list1 = messages.map((m) => messageToPayload(m, resolvedChatId, getSenderName(m), null, getSenderAvatar(m), removedAtForPayload, reIncorporatedAtForPayload));
   const list2 = deletedMessages.map((m) => deletedMessageToPayload(m, resolvedChatId, getSenderName(m)));
 
   let combined = [...list1, ...list2].sort((a, b) => a.timestamp - b.timestamp).slice(-limit);
@@ -488,7 +488,7 @@ async function markMessageDelivered(messageId, userId) {
   if (!messageId || !userId) return null;
   const msg = await Message.findById(messageId);
   if (!msg) return null;
-  const conv = await Conversation.findById(msg.conversation).select('name type removedParticipantIds removedAt').lean();
+  const conv = await Conversation.findById(msg.conversation).select('name type removedParticipantIds removedAt reIncorporatedAt').lean();
   if (conv?.type === 'group') {
     const removed = (conv.removedParticipantIds || []).map((id) => id.toString());
     if (removed.includes(String(userId))) return null;
@@ -505,7 +505,8 @@ async function markMessageDelivered(messageId, userId) {
   const getSenderName = (m) => (m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'));
   const getSenderAvatar = (m) => (m.sender && m.sender.avatar ? m.sender.avatar : null);
   const removedAt = conv?.type === 'group' ? conv.removedAt : null;
-  return messageToPayload(updated, resolvedChatId, getSenderName(updated), null, getSenderAvatar(updated), removedAt);
+  const reIncorporatedAt = conv?.type === 'group' ? conv.reIncorporatedAt : null;
+  return messageToPayload(updated, resolvedChatId, getSenderName(updated), null, getSenderAvatar(updated), removedAt, reIncorporatedAt);
 }
 
 async function markAllConversationsDeliveredForUser(userId) {
@@ -547,8 +548,9 @@ async function markAllConversationsDeliveredForUser(userId) {
     const getSenderName = (m) => (m.sender ? (m.sender.nickname?.trim() || m.sender.name) : (m.senderName || 'Anónimo'));
     const getSenderAvatar = (m) => (m.sender && m.sender.avatar ? m.sender.avatar : null);
     const removedAt = conv.type === 'group' ? conv.removedAt : null;
+    const reIncorporatedAt = conv.type === 'group' ? conv.reIncorporatedAt : null;
     for (const m of updatedMessages) {
-      payloads.push(messageToPayload(m, resolvedChatId, getSenderName(m), null, getSenderAvatar(m), removedAt));
+      payloads.push(messageToPayload(m, resolvedChatId, getSenderName(m), null, getSenderAvatar(m), removedAt, reIncorporatedAt));
     }
   }
   return payloads;
