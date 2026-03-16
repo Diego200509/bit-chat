@@ -4,50 +4,10 @@ import type { Conversation } from '../../types/conversation'
 import { env } from '../../config/env'
 import { socket } from '../../lib/socket'
 import { SOCKET_EVENTS } from '../../constants/socket'
-import * as api from '../../lib/api'
+import { startVideoCallRingtone } from '../../lib/videoCallRingtone'
 import { ConfirmModal } from './ConfirmModal'
 import { Message } from './Message'
 import { MessageInput } from './MessageInput'
-
-function startRingingTone(): () => void {
-  try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-    const gain = ctx.createGain()
-    gain.gain.value = 0.15
-    gain.connect(ctx.destination)
-
-    let stopped = false
-    const schedule = () => {
-      if (stopped) return
-      const t = ctx.currentTime
-      const play = (freq: number, start: number, duration: number) => {
-        const osc = ctx.createOscillator()
-        osc.frequency.value = freq
-        osc.connect(gain)
-        osc.start(start)
-        osc.stop(start + duration)
-      }
-      play(440, t, 0.2)
-      play(440, t + 0.25, 0.2)
-      play(480, t + 0.5, 0.2)
-      play(480, t + 0.75, 0.2)
-    }
-
-    schedule()
-    const interval = window.setInterval(() => {
-      if (stopped) return
-      schedule()
-    }, 1500)
-
-    return () => {
-      stopped = true
-      clearInterval(interval)
-      ctx.close().catch(() => {})
-    }
-  } catch {
-    return () => {}
-  }
-}
 
 function makeVideoCallRoomName(): string {
   const part = Math.random().toString(36).replace(/[^a-z0-9]/g, '').slice(0, 10)
@@ -63,22 +23,22 @@ function formatLastSeen(timestamp: number): string {
   const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   const timeStr = date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
   if (dateOnly.getTime() === today.getTime()) {
-    return `hoy a las ${timeStr}`
+    return timeStr
   }
   if (dateOnly.getTime() === yesterday.getTime()) {
-    return `ayer a las ${timeStr}`
+    return `ayer ${timeStr}`
   }
   const diffDays = Math.floor((today.getTime() - dateOnly.getTime()) / (24 * 60 * 60 * 1000))
   if (diffDays >= 1 && diffDays < 7) {
-    return `${date.toLocaleDateString('es', { weekday: 'long' })} a las ${timeStr}`
+    return `${date.toLocaleDateString('es', { weekday: 'long' })} ${timeStr}`
   }
   if (diffDays >= 7 && diffDays < 365) {
-    return date.toLocaleDateString('es', { day: 'numeric', month: 'short' })
+    return `${date.toLocaleDateString('es', { day: 'numeric', month: 'short' })} ${timeStr}`
   }
   if (diffDays >= 365) {
     return date.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
   }
-  return date.toLocaleDateString('es', { day: 'numeric', month: 'short' })
+  return `${date.toLocaleDateString('es', { day: 'numeric', month: 'short' })} ${timeStr}`
 }
 
 function getConversationHeaderSubtitle(
@@ -90,7 +50,7 @@ function getConversationHeaderSubtitle(
   let line: string
   if (conversation.otherUserId != null) {
     if (otherUserOnline === true) line = 'En línea'
-    else if (conversation.otherUserLastSeen != null) line = `Última vez ${formatLastSeen(conversation.otherUserLastSeen)}`
+    else if (conversation.otherUserLastSeen != null) line = `Última actividad ${formatLastSeen(conversation.otherUserLastSeen)}`
     else line = 'Desconectado'
     const status = conversation.otherUserStatus?.trim()
     return status ? `${line} · ${status}` : line
@@ -124,6 +84,7 @@ interface ConversationViewProps {
   onDeleteMessage?: (messageId: string, scope: 'for_me' | 'for_everyone') => void
   onClearConversation?: (conversationId: string) => void
   onGroupUpdated?: () => void
+  onOpenManageGroup?: () => void
   currentUserName?: string
   currentUserAvatar?: string | null
 }
@@ -143,14 +104,13 @@ export function ConversationView({
   usersInCurrentConversation = [],
   onDeleteMessage,
   onClearConversation,
-  onGroupUpdated,
+  onOpenManageGroup,
   currentUserName = 'Yo',
   currentUserAvatar,
 }: ConversationViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
-  const [showManageGroupModal, setShowManageGroupModal] = useState(false)
   const [outgoingCall, setOutgoingCall] = useState<{ chatId: string; roomName: string } | null>(null)
   const [chatHeaderMenuOpen, setChatHeaderMenuOpen] = useState(false)
   const [chatHeaderMenuStyle, setChatHeaderMenuStyle] = useState<{ top: number; left: number } | null>(null)
@@ -203,7 +163,7 @@ export function ConversationView({
 
   useEffect(() => {
     if (outgoingCall) {
-      ringStopRef.current = startRingingTone()
+      ringStopRef.current = startVideoCallRingtone()
     } else {
       ringStopRef.current?.()
       ringStopRef.current = null
@@ -290,7 +250,7 @@ export function ConversationView({
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-talkapp-primary/20 text-talkapp-primary sm:h-16 sm:w-16">
           <ChatIcon />
         </div>
-        <p className="text-sm sm:text-base">Selecciona una conversación o espera a que alguien te escriba</p>
+        <p className="text-sm sm:text-base">No hay conversaciones. Abre Contactos y inicia una conversación.</p>
       </div>
     )
   }
@@ -364,7 +324,7 @@ export function ConversationView({
                         <button
                           type="button"
                           onClick={() => {
-                            setShowManageGroupModal(true)
+                            onOpenManageGroup?.()
                             setChatHeaderMenuOpen(false)
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel"
@@ -493,24 +453,12 @@ export function ConversationView({
         />
       )}
 
-      {showManageGroupModal && conversation && isGroup && conversation.isGroupAdmin && (
-        <ManageGroupModal
-          conversation={conversation}
-          currentUserId={currentUserId}
-          onClose={() => setShowManageGroupModal(false)}
-          onGroupUpdated={() => {
-            onGroupUpdated?.()
-            setShowManageGroupModal(false)
-          }}
-        />
-      )}
-
       {outgoingCall && conversation && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-talkapp-sidebar border border-talkapp-border shadow-2xl overflow-hidden">
-            <div className="p-6 pb-4 text-center">
-              <div className="relative inline-block mb-4">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-talkapp-panel border-4 border-talkapp-primary/30 flex items-center justify-center animate-pulse">
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-talkapp-bg/95 backdrop-blur-md">
+          <div className="w-full max-w-[340px] flex flex-col rounded-[28px] overflow-hidden shadow-2xl border border-talkapp-border/60 bg-talkapp-sidebar">
+            <div className="relative pt-10 pb-6 px-6 text-center bg-gradient-to-b from-talkapp-primary/10 to-transparent">
+              <div className="relative inline-block">
+                <div className="w-32 h-32 rounded-full overflow-hidden flex items-center justify-center bg-talkapp-panel/80 ring-4 ring-talkapp-primary/25 ring-offset-4 ring-offset-talkapp-sidebar">
                   {conversation.avatar || conversation.image ? (
                     <img
                       src={(() => {
@@ -521,17 +469,18 @@ export function ConversationView({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-4xl text-slate-500">👤</span>
+                    <VideoCallAvatarPlaceholderIcon className="w-16 h-16 text-talkapp-primary/50" />
                   )}
                 </div>
-                <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-talkapp-primary/80 text-talkapp-on-primary animate-pulse">
-                  <VideoCallIcon className="h-3.5 w-3.5" />
+                <span className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-talkapp-primary text-talkapp-on-primary shadow-lg border-2 border-talkapp-sidebar">
+                  <VideoCallIcon className="h-5 w-5" />
                 </span>
               </div>
-              <p className="text-talkapp-fg-muted text-sm font-medium">Llamando a</p>
-              <p className="text-talkapp-fg text-xl font-semibold mt-1">{conversation.name}</p>
+              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-talkapp-primary/90">Llamando a</p>
+              <p className="text-talkapp-fg text-2xl font-bold mt-1.5 tracking-tight">{conversation.name}</p>
+              <p className="text-talkapp-fg-muted text-sm mt-1">Esperando respuesta…</p>
             </div>
-            <div className="p-4 pt-0">
+            <div className="p-5 pt-2 bg-talkapp-sidebar">
               <button
                 type="button"
                 onClick={() => {
@@ -540,9 +489,9 @@ export function ConversationView({
                   }
                   setOutgoingCall(null)
                 }}
-                className="w-full rounded-xl py-3.5 bg-red-600 text-white font-semibold hover:bg-red-500 active:opacity-90 transition-colors"
+                className="w-full rounded-xl py-3.5 bg-red-500 text-white font-semibold hover:bg-red-400 active:opacity-90 transition-colors"
               >
-                Cancelar
+                Cancelar llamada
               </button>
             </div>
           </div>
@@ -552,269 +501,12 @@ export function ConversationView({
   )
 }
 
-interface ManageGroupModalProps {
-  conversation: Conversation
-  currentUserId: string
-  onClose: () => void
-  onGroupUpdated: () => void
-}
-
-function fullGroupImageUrl(path: string | null | undefined): string {
-  if (!path) return ''
-  if (path.startsWith('http') || path.startsWith('data:')) return path
-  const base = env.apiUrl.replace(/\/$/, '')
-  return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
-}
-
-function ManageGroupModal({ conversation, currentUserId, onClose, onGroupUpdated }: ManageGroupModalProps) {
-  const [contacts, setContacts] = useState<api.ContactItem[]>([])
-  const [loadingContacts, setLoadingContacts] = useState(false)
-  const [showAddList, setShowAddList] = useState(false)
-  const [adding, setAdding] = useState(false)
-  const [removingId, setRemovingId] = useState<string | null>(null)
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [imageError, setImageError] = useState<string | null>(null)
-  const groupImageInputRef = useRef<HTMLInputElement>(null)
-  const adminSet = useMemo(() => new Set(conversation.adminIds ?? []), [conversation.adminIds])
-  const removedSet = useMemo(() => new Set(conversation.removedParticipantIds ?? []), [conversation.removedParticipantIds])
-  const participantIds = useMemo(() => new Set((conversation.participants ?? []).map((p) => p.id)), [conversation.participants])
-
-  const handleGroupImageChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-      setImageError(null)
-      setUploadingImage(true)
-      try {
-        const url = await api.uploadImage(file)
-        await api.updateGroupConversation(conversation.id, { image: url })
-        onGroupUpdated()
-      } catch (err) {
-        setImageError(err instanceof Error ? err.message : 'Error al subir la imagen')
-      } finally {
-        setUploadingImage(false)
-        e.target.value = ''
-      }
-    },
-    [conversation.id, onGroupUpdated]
-  )
-
-  const handleRemoveGroupImage = useCallback(async () => {
-    setImageError(null)
-    try {
-      await api.updateGroupConversation(conversation.id, { image: null })
-      onGroupUpdated()
-    } catch (err) {
-      setImageError(err instanceof Error ? err.message : 'Error al quitar la foto')
-    }
-  }, [conversation.id, onGroupUpdated])
-
-  useEffect(() => {
-    if (!showAddList) return
-    setLoadingContacts(true)
-    api
-      .getContacts()
-      .then((data) => {
-        const friends = data.friends ?? []
-        setContacts(friends.filter((c) => !participantIds.has(c.userId)))
-      })
-      .catch(() => setContacts([]))
-      .finally(() => setLoadingContacts(false))
-  }, [showAddList, participantIds])
-
-  const handleAdd = useCallback(
-    async (userId: string) => {
-      setAdding(true)
-      try {
-        await api.addGroupParticipant(conversation.id, userId)
-        onGroupUpdated()
-      } finally {
-        setAdding(false)
-        setShowAddList(false)
-      }
-    },
-    [conversation.id, onGroupUpdated]
-  )
-
-  const handleRemove = useCallback(
-    async (userId: string) => {
-      setRemovingId(userId)
-      try {
-        await api.removeGroupParticipant(conversation.id, userId)
-        onGroupUpdated()
-      } finally {
-        setRemovingId(null)
-      }
-    },
-    [conversation.id, onGroupUpdated]
-  )
-
-  const handleReincorporate = useCallback(
-    async (userId: string) => {
-      setRemovingId(userId)
-      try {
-        await api.addGroupParticipant(conversation.id, userId)
-        onGroupUpdated()
-      } finally {
-        setRemovingId(null)
-      }
-    },
-    [conversation.id, onGroupUpdated]
-  )
-
+function VideoCallAvatarPlaceholderIcon({ className }: { className?: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-xl border border-talkapp-border bg-talkapp-sidebar shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-talkapp-border p-4">
-          <h3 className="font-semibold text-talkapp-fg">Administrar grupo</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-talkapp-fg-muted hover:bg-talkapp-panel hover:text-talkapp-fg"
-            aria-label="Cerrar"
-          >
-            <CloseIcon className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="chat-messages-scroll max-h-[60vh] overflow-y-auto p-4">
-          <div className="mb-4 flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => groupImageInputRef.current?.click()}
-              disabled={uploadingImage}
-              className="w-16 h-16 rounded-full overflow-hidden bg-talkapp-panel border-2 border-talkapp-border flex items-center justify-center shrink-0 hover:border-talkapp-primary transition-colors focus:outline-none focus:ring-2 focus:ring-talkapp-primary"
-            >
-              {conversation.image ? (
-                <img src={fullGroupImageUrl(conversation.image)} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7 text-talkapp-fg-muted">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-              )}
-            </button>
-            <input
-              ref={groupImageInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-              className="hidden"
-              onChange={handleGroupImageChange}
-            />
-            <div className="flex flex-col gap-1 min-w-0">
-              <p className="text-sm font-medium text-talkapp-fg">Imagen del grupo</p>
-              <p className="text-xs text-talkapp-fg-muted">{uploadingImage ? 'Subiendo imagen…' : 'Toca para cambiar'}</p>
-              {conversation.image && (
-                <button
-                  type="button"
-                  onClick={handleRemoveGroupImage}
-                  className="text-xs text-red-400 hover:text-red-300 focus:outline-none focus:underline text-left"
-                >
-                  Eliminar imagen
-                </button>
-              )}
-              {imageError && <p className="text-xs text-red-400">{imageError}</p>}
-            </div>
-          </div>
-          <p className="mb-3 text-sm font-semibold text-talkapp-fg-muted uppercase tracking-wider text-xs">Miembros</p>
-          <div className="space-y-2">
-            {(conversation.participants ?? []).map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between gap-2 rounded-lg border border-talkapp-border bg-talkapp-panel px-3 py-2"
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="font-medium text-talkapp-fg">{p.name}</span>
-                  {adminSet.has(p.id) && (
-                    <span className="ml-2 rounded bg-talkapp-primary/20 px-1.5 py-0.5 text-xs text-talkapp-primary">
-                      Admin
-                    </span>
-                  )}
-                  {removedSet.has(p.id) && (
-                    <span className="ml-2 rounded bg-talkapp-fg-muted/20 px-1.5 py-0.5 text-xs text-talkapp-fg-muted">
-                      Removido
-                    </span>
-                  )}
-                </div>
-                {p.id !== currentUserId && (
-                  removedSet.has(p.id) ? (
-                    <button
-                      type="button"
-                      onClick={() => handleReincorporate(p.id)}
-                      disabled={!!removingId}
-                      className="shrink-0 rounded-lg px-2 py-1 text-sm text-talkapp-primary hover:bg-talkapp-primary/15 disabled:opacity-50"
-                    >
-                      {removingId === p.id ? '…' : 'Reincorporar'}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(p.id)}
-                      disabled={!!removingId}
-                      className="shrink-0 rounded-lg px-2 py-1 text-sm text-red-400 hover:bg-red-500/15 disabled:opacity-50"
-                    >
-                      {removingId === p.id ? '…' : 'Quitar'}
-                    </button>
-                  )
-                )}
-              </div>
-            ))}
-          </div>
-          {!showAddList ? (
-            <button
-              type="button"
-              onClick={() => setShowAddList(true)}
-              className="mt-4 w-full rounded-lg border border-talkapp-border bg-talkapp-panel py-2.5 text-sm font-medium text-talkapp-fg hover:bg-talkapp-bg"
-            >
-              Agregar participante
-            </button>
-          ) : (
-            <div className="mt-4 rounded-lg border border-talkapp-border bg-talkapp-panel p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-talkapp-fg">Agregar contacto</span>
-                <button
-                  type="button"
-                  onClick={() => setShowAddList(false)}
-                  className="text-sm text-talkapp-fg-muted hover:text-talkapp-fg"
-                >
-                  Cancelar
-                </button>
-              </div>
-              {loadingContacts ? (
-                <p className="py-2 text-sm text-talkapp-fg-muted">Cargando…</p>
-              ) : contacts.length === 0 ? (
-                <p className="py-2 text-sm text-talkapp-fg-muted">No hay contactos para agregar.</p>
-              ) : (
-                <ul className="chat-messages-scroll max-h-40 overflow-y-auto space-y-1">
-                  {contacts.map((c) => (
-                    <li key={c.userId}>
-                      <button
-                        type="button"
-                        onClick={() => handleAdd(c.userId)}
-                        disabled={adding}
-                        className="w-full rounded px-2 py-1.5 text-left text-sm text-talkapp-fg hover:bg-talkapp-bg disabled:opacity-50"
-                      >
-                        {c.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function CloseIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="9" r="3" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
     </svg>
   )
 }
@@ -890,14 +582,14 @@ function ChatIcon() {
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
-      fill="currentColor"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className="w-8 h-8"
     >
-      <path
-        fillRule="evenodd"
-        d="M4.848 2.771A49.144 49.144 0 0 1 12 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 4.083 2.764a.75.75 0 0 1 .98 1.129l-.354.354a.75.75 0 0 1-1.154-.114 47.37 47.37 0 0 0-7.996-.98.75.75 0 0 1-.53-.22 11.25 11.25 0 0 0-15.785 0 .75.75 0 0 1-.53.22 47.368 47.368 0 0 0-7.996.98.75.75 0 0 1-1.154.114l-.354-.354a.75.75 0 0 1 .98-1.129c.735-.74 2.105-2.472 4.083-2.764Z"
-        clipRule="evenodd"
-      />
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
     </svg>
   )
 }

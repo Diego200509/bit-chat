@@ -13,6 +13,8 @@ const conversationSchema = new mongoose.Schema(
     removedParticipantIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     /** Fecha en que cada usuario fue eliminado (solo grupos). Clave = userId string, valor = Date. Para filtrar historial. */
     removedAt: { type: Map, of: Date, default: null },
+    /** Fecha en que cada usuario fue reincorporado (solo grupos). Clave = userId string, valor = Date. Mensajes entre removedAt y reIncorporatedAt no se muestran al usuario. */
+    reIncorporatedAt: { type: Map, of: Date, default: null },
     pinnedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     archivedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     mutedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

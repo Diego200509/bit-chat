@@ -60,6 +60,11 @@ function getRemovedAt(removedAt, userId) {
   return typeof removedAt.get === 'function' ? removedAt.get(userId) : removedAt[userId];
 }
 
+function getReIncorporatedAt(reIncorporatedAt, userId) {
+  if (!reIncorporatedAt) return null;
+  return typeof reIncorporatedAt.get === 'function' ? reIncorporatedAt.get(userId) : reIncorporatedAt[userId];
+}
+
 function messageToPayload(msg, resolvedChatId, senderDisplayName, senderIdFallback = null, senderAvatar = null, removedAt = null) {
   let senderId = null;
   if (msg.sender) {
@@ -156,11 +161,15 @@ async function getMessageHistory(conversationId, limit = 100, currentUserId = nu
 
   const resolvedChatId = conv._id.toString();
 
-  let cutOffDate = null;
+  let dateFilter = null;
   if (conv.type === 'group' && currentUserId) {
     const removed = (conv.removedParticipantIds || []).map((id) => id.toString());
-    if (removed.includes(String(currentUserId)) && conv.removedAt) {
-      cutOffDate = (typeof conv.removedAt.get === 'function' ? conv.removedAt.get(currentUserId) : conv.removedAt[currentUserId]) || null;
+    const removedAtDate = getRemovedAt(conv.removedAt, currentUserId);
+    const reIncorporatedAtDate = getReIncorporatedAt(conv.reIncorporatedAt, currentUserId);
+    if (removed.includes(String(currentUserId)) && removedAtDate) {
+      dateFilter = 'removed';
+    } else if (removedAtDate && reIncorporatedAtDate) {
+      dateFilter = 'reincorporated';
     }
   }
 
@@ -169,7 +178,19 @@ async function getMessageHistory(conversationId, limit = 100, currentUserId = nu
     const userObjId = mongoose.Types.ObjectId.isValid(currentUserId) ? new mongoose.Types.ObjectId(currentUserId) : null;
     if (userObjId) baseQuery.deletedFor = { $nin: [userObjId] };
   }
-  if (cutOffDate) baseQuery.createdAt = { $lte: cutOffDate };
+  if (dateFilter === 'removed') {
+    const cutOffDate = getRemovedAt(conv.removedAt, currentUserId);
+    if (cutOffDate) baseQuery.createdAt = { $lte: cutOffDate };
+  } else if (dateFilter === 'reincorporated') {
+    const removedAtDate = getRemovedAt(conv.removedAt, currentUserId);
+    const reIncorporatedAtDate = getReIncorporatedAt(conv.reIncorporatedAt, currentUserId);
+    if (removedAtDate && reIncorporatedAtDate) {
+      baseQuery.$or = [
+        { createdAt: { $lte: new Date(removedAtDate) } },
+        { createdAt: { $gte: new Date(reIncorporatedAtDate) } },
+      ];
+    }
+  }
 
   let messages = await Message.find(baseQuery)
     .sort({ createdAt: 1 })
@@ -178,7 +199,19 @@ async function getMessageHistory(conversationId, limit = 100, currentUserId = nu
     .lean();
 
   const deletedQuery = { conversation: conv._id, deletedAt: { $ne: null } };
-  if (cutOffDate) deletedQuery.createdAt = { $lte: cutOffDate };
+  if (dateFilter === 'removed') {
+    const cutOffDate = getRemovedAt(conv.removedAt, currentUserId);
+    if (cutOffDate) deletedQuery.createdAt = { $lte: cutOffDate };
+  } else if (dateFilter === 'reincorporated') {
+    const removedAtDate = getRemovedAt(conv.removedAt, currentUserId);
+    const reIncorporatedAtDate = getReIncorporatedAt(conv.reIncorporatedAt, currentUserId);
+    if (removedAtDate && reIncorporatedAtDate) {
+      deletedQuery.$or = [
+        { createdAt: { $lte: new Date(removedAtDate) } },
+        { createdAt: { $gte: new Date(reIncorporatedAtDate) } },
+      ];
+    }
+  }
   let deletedMessages = await Message.find(deletedQuery)
     .sort({ createdAt: 1 })
     .limit(limit * 2)
@@ -238,7 +271,7 @@ async function getConversationsForUser(userId, limit = 50) {
     deletedFor: { $nin: [userObjIdForList] },
   });
 
-  async function getUnreadCount(convId, maxCreatedAt = null) {
+  async function getUnreadCount(convId, maxCreatedAt = null, minCreatedAt = null) {
     const query = {
       conversation: convId,
       deletedAt: null,
@@ -246,7 +279,16 @@ async function getConversationsForUser(userId, limit = 50) {
       sender: { $ne: userObjIdForList },
       readBy: { $nin: [userObjIdForList] },
     };
-    if (maxCreatedAt) query.createdAt = { $lte: maxCreatedAt };
+    if (maxCreatedAt && minCreatedAt) {
+      query.$or = [
+        { createdAt: { $lte: maxCreatedAt } },
+        { createdAt: { $gte: minCreatedAt } },
+      ];
+    } else if (maxCreatedAt) {
+      query.createdAt = { $lte: maxCreatedAt };
+    } else if (minCreatedAt) {
+      query.createdAt = { $gte: minCreatedAt };
+    }
     const count = await Message.countDocuments(query);
     return count;
   }
@@ -294,14 +336,23 @@ async function getConversationsForUser(userId, limit = 50) {
   for (const c of groupConvs) {
     const removedParticipantIdsC = (c.removedParticipantIds || []).map((id) => id.toString());
     const isRemovedFromGroupC = removedParticipantIdsC.includes(userId);
+    const removedAtDate = getRemovedAt(c.removedAt, userId);
+    const reIncorporatedAtDate = getReIncorporatedAt(c.reIncorporatedAt, userId);
+    const isReIncorporated = !isRemovedFromGroupC && removedAtDate && reIncorporatedAtDate;
+
     const groupLastMsgQuery = { ...lastMsgQueryBase(c._id) };
     let groupUnreadCutOff = null;
-    if (isRemovedFromGroupC && c.removedAt) {
-      const cutOff = getRemovedAt(c.removedAt, userId);
-      if (cutOff) {
-        groupLastMsgQuery.createdAt = { $lte: new Date(cutOff) };
-        groupUnreadCutOff = new Date(cutOff);
-      }
+    let groupUnreadMinCreatedAt = null;
+    if (isRemovedFromGroupC && removedAtDate) {
+      groupLastMsgQuery.createdAt = { $lte: new Date(removedAtDate) };
+      groupUnreadCutOff = new Date(removedAtDate);
+    } else if (isReIncorporated) {
+      groupLastMsgQuery.$or = [
+        { createdAt: { $lte: new Date(removedAtDate) } },
+        { createdAt: { $gte: new Date(reIncorporatedAtDate) } },
+      ];
+      groupUnreadCutOff = new Date(removedAtDate);
+      groupUnreadMinCreatedAt = new Date(reIncorporatedAtDate);
     }
     const lastMsg = await Message.findOne(groupLastMsgQuery).sort({ createdAt: -1 }).lean();
     const pinned = (c.pinnedBy || []).some((id) => id.toString() === userId);
@@ -335,7 +386,9 @@ async function getConversationsForUser(userId, limit = 50) {
       lastMessageReadBy = lastMessageReadBy.filter((id) => !removedParticipantIds.includes(id));
       lastMessageDeliveredBy = lastMessageDeliveredBy.filter((id) => !removedParticipantIds.includes(id));
     }
-    const unread = await getUnreadCount(c._id, groupUnreadCutOff);
+    const unread = groupUnreadMinCreatedAt
+      ? await getUnreadCount(c._id, groupUnreadCutOff, groupUnreadMinCreatedAt)
+      : await getUnreadCount(c._id, groupUnreadCutOff);
     list.push({
       id: c._id.toString(),
       name: c.name || 'Grupo',
@@ -458,7 +511,7 @@ async function markMessageDelivered(messageId, userId) {
 async function markAllConversationsDeliveredForUser(userId) {
   if (!userId) return [];
   const userObjId = new mongoose.Types.ObjectId(userId);
-  const convs = await Conversation.find({ participants: userObjId }).select('_id name type removedParticipantIds removedAt').lean();
+  const convs = await Conversation.find({ participants: userObjId }).select('_id name type removedParticipantIds removedAt reIncorporatedAt').lean();
   const payloads = [];
   for (const conv of convs) {
     if (conv.type === 'group') {
@@ -474,7 +527,15 @@ async function markAllConversationsDeliveredForUser(userId) {
       deletedFor: { $nin: [userObjId] },
     };
     const removedAtDate = getRemovedAt(conv.removedAt, userId);
-    if (conv.type === 'group' && removedAtDate) deliveredQuery.createdAt = { $lte: new Date(removedAtDate) };
+    const reIncorporatedAtDate = getReIncorporatedAt(conv.reIncorporatedAt, userId);
+    if (conv.type === 'group' && removedAtDate && reIncorporatedAtDate) {
+      deliveredQuery.$or = [
+        { createdAt: { $lte: new Date(removedAtDate) } },
+        { createdAt: { $gte: new Date(reIncorporatedAtDate) } },
+      ];
+    } else if (conv.type === 'group' && removedAtDate) {
+      deliveredQuery.createdAt = { $lte: new Date(removedAtDate) };
+    }
     const messagesToUpdate = await Message.find(deliveredQuery).lean();
     for (const msg of messagesToUpdate) {
       await Message.findByIdAndUpdate(msg._id, { $addToSet: { deliveredBy: userObjId } });
@@ -497,24 +558,31 @@ async function markConversationAsRead(conversationId, userId) {
   if (!conversationId || !userId) return;
   const conv = await getOrCreateConversation(conversationId);
   if (!conv) return;
+  const readByValue = mongoose.Types.ObjectId.isValid(String(userId)) && String(userId).length === 24 ? new mongoose.Types.ObjectId(userId) : userId;
   if (conv.type === 'group') {
     const removed = (conv.removedParticipantIds || []).map((id) => id.toString());
     if (removed.includes(String(userId))) return;
     const removedAtDate = getRemovedAt(conv.removedAt, userId);
-    if (removedAtDate) {
-      const cutOff = new Date(removedAtDate);
+    const reIncorporatedAtDate = getReIncorporatedAt(conv.reIncorporatedAt, userId);
+    if (removedAtDate && reIncorporatedAtDate) {
       await Message.updateMany(
-        { conversation: conv._id, createdAt: { $lte: cutOff } },
-        { $addToSet: { readBy: mongoose.Types.ObjectId.isValid(String(userId)) && String(userId).length === 24 ? new mongoose.Types.ObjectId(userId) : userId } }
+        { conversation: conv._id, createdAt: { $lte: new Date(removedAtDate) } },
+        { $addToSet: { readBy: readByValue } }
+      );
+      await Message.updateMany(
+        { conversation: conv._id, createdAt: { $gte: new Date(reIncorporatedAtDate) } },
+        { $addToSet: { readBy: readByValue } }
+      );
+      return;
+    }
+    if (removedAtDate) {
+      await Message.updateMany(
+        { conversation: conv._id, createdAt: { $lte: new Date(removedAtDate) } },
+        { $addToSet: { readBy: readByValue } }
       );
       return;
     }
   }
-  const idStr = String(userId);
-  const readByValue =
-    mongoose.Types.ObjectId.isValid(idStr) && idStr.length === 24
-      ? new mongoose.Types.ObjectId(idStr)
-      : idStr;
   await Message.updateMany(
     { conversation: conv._id },
     { $addToSet: { readBy: readByValue } }
@@ -579,9 +647,16 @@ async function addParticipantToGroup(conversationId, userIdToAdd, requesterId) {
   const inRemoved = (conv.removedParticipantIds || []).some((id) => id.toString() === addId.toString());
   if (inParticipants && !inRemoved) return { error: 'El usuario ya está en el grupo' };
   const uidStr = addId.toString();
+
   if (inParticipants && inRemoved) {
+    const now = new Date();
+    const currentReIncorporatedAt = conv.reIncorporatedAt != null && typeof conv.reIncorporatedAt === 'object'
+      ? (conv.reIncorporatedAt instanceof Map ? Object.fromEntries(conv.reIncorporatedAt) : { ...conv.reIncorporatedAt })
+      : {};
+    currentReIncorporatedAt[uidStr] = now;
     await Conversation.findByIdAndUpdate(conversationId, {
       $pull: { removedParticipantIds: addId },
+      $set: { reIncorporatedAt: currentReIncorporatedAt },
     });
     return { ok: true, conversationId: conv._id.toString() };
   }
@@ -603,10 +678,15 @@ async function removeParticipantFromGroup(conversationId, userIdToRemove, reques
     return { error: 'El usuario no está en el grupo' };
   }
   const uidStr = removeId.toString();
+  const now = new Date();
+  const currentRemovedAt = conv.removedAt != null && typeof conv.removedAt === 'object'
+    ? (conv.removedAt instanceof Map ? Object.fromEntries(conv.removedAt) : { ...conv.removedAt })
+    : {};
+  currentRemovedAt[uidStr] = now;
   await Conversation.findByIdAndUpdate(conversationId, {
     $addToSet: { removedParticipantIds: removeId },
     $pull: { adminIds: removeId },
-    $set: { [`removedAt.${uidStr}`]: new Date() },
+    $set: { removedAt: currentRemovedAt },
   });
   return { ok: true, conversationId: conv._id.toString() };
 }

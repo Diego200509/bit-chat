@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { Conversation } from '../../types/conversation'
 import { ConfirmModal } from './ConfirmModal'
-import { CreateConversationModal } from './CreateConversationModal'
 import { env } from '../../config/env'
 
 
@@ -47,11 +46,11 @@ interface ConversationListProps {
   currentUserAvatar?: string | null
   onLogout?: () => void
   onOpenContacts?: () => void
+  onOpenCreateGroup?: () => void
   onEditProfile?: () => void
   conversationsLoading?: boolean
   onMuteConversation?: (conversationId: string) => void
   onUnmuteConversation?: (conversationId: string) => void
-  onCreateGroup?: (name: string, participantIds: string[], image?: string | null) => Promise<void>
   onClearConversation?: (conversationId: string) => void
   theme?: 'dark' | 'light'
   onToggleTheme?: () => void
@@ -66,12 +65,12 @@ export function ConversationList({
   currentUserName = 'Yo',
   onLogout,
   onOpenContacts,
+  onOpenCreateGroup,
   currentUserAvatar,
   onEditProfile,
   conversationsLoading = false,
   onMuteConversation,
   onUnmuteConversation,
-  onCreateGroup,
   onClearConversation,
   theme = 'dark',
   onToggleTheme,
@@ -79,21 +78,24 @@ export function ConversationList({
 }: ConversationListProps) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [menuStyle, setMenuStyle] = useState<{ top: number; left: number } | null>(null)
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null)
   const [clearConfirmConversationId, setClearConfirmConversationId] = useState<string | null>(null)
-  const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
   const [headerMenuStyle, setHeaderMenuStyle] = useState<{ top: number; left: number } | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
   const menuDropdownRef = useRef<HTMLDivElement>(null)
+  const chevronButtonRef = useRef<HTMLButtonElement>(null)
   const headerMenuRef = useRef<HTMLButtonElement>(null)
+  const footerMenuRef = useRef<HTMLButtonElement>(null)
   const headerMenuDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!headerMenuOpen || !headerMenuRef.current) {
+    if (!headerMenuOpen) {
       setHeaderMenuStyle(null)
       return
     }
-    const rect = headerMenuRef.current.getBoundingClientRect()
+    const anchor = footerMenuRef.current ?? headerMenuRef.current
+    if (!anchor) return
+    const rect = anchor.getBoundingClientRect()
     const padding = 8
     const menuWidth = 180
     const viewportW = window.innerWidth
@@ -102,8 +104,10 @@ export function ConversationList({
   }, [headerMenuOpen])
 
   useLayoutEffect(() => {
-    if (!headerMenuOpen || !headerMenuStyle || !headerMenuRef.current || !headerMenuDropdownRef.current) return
-    const rect = headerMenuRef.current.getBoundingClientRect()
+    if (!headerMenuOpen || !headerMenuStyle || !headerMenuDropdownRef.current) return
+    const anchor = footerMenuRef.current ?? headerMenuRef.current
+    if (!anchor) return
+    const rect = anchor.getBoundingClientRect()
     const padding = 8
     const viewportH = window.innerHeight
     const menuHeight = headerMenuDropdownRef.current.offsetHeight
@@ -118,36 +122,27 @@ export function ConversationList({
     if (!headerMenuOpen) return
     const close = (e: MouseEvent) => {
       const target = e.target as Node
-      if (headerMenuRef.current?.contains(target) || headerMenuDropdownRef.current?.contains(target)) return
+      if (footerMenuRef.current?.contains(target) || headerMenuRef.current?.contains(target) || headerMenuDropdownRef.current?.contains(target)) return
       setHeaderMenuOpen(false)
     }
     document.addEventListener('click', close)
     return () => document.removeEventListener('click', close)
   }, [headerMenuOpen])
 
-  useEffect(() => {
-    if (!menuOpenId || !menuRef.current) {
-      setMenuStyle(null)
-      return
-    }
-    const rect = menuRef.current.getBoundingClientRect()
-    const padding = 8
-    const menuWidth = 176
-    const viewportW = window.innerWidth
-    const left = Math.max(padding, Math.min(viewportW - menuWidth - padding, rect.right - menuWidth))
-    setMenuStyle({ top: rect.bottom + padding, left })
-  }, [menuOpenId])
-
   useLayoutEffect(() => {
-    if (!menuOpenId || !menuStyle || !menuRef.current || !menuDropdownRef.current) return
-    const rect = menuRef.current.getBoundingClientRect()
+    if (!menuOpenId || !menuStyle || !menuDropdownRef.current) return
     const padding = 8
+    const menuWidth = 192
+    const viewportW = window.innerWidth
     const viewportH = window.innerHeight
     const menuHeight = menuDropdownRef.current.offsetHeight
-    const isCurrentlyBelow = menuStyle.top >= rect.bottom
-    if (isCurrentlyBelow && menuStyle.top + menuHeight > viewportH - padding) {
-      const topUp = rect.top - menuHeight - padding
-      setMenuStyle((prev) => (prev ? { ...prev, top: Math.max(padding, topUp) } : prev))
+    let top = menuStyle.top
+    let left = menuStyle.left
+    if (top + menuHeight > viewportH - padding) top = Math.max(padding, top - menuHeight - padding)
+    if (left + menuWidth > viewportW - padding) left = viewportW - menuWidth - padding
+    if (left < padding) left = padding
+    if (top !== menuStyle.top || left !== menuStyle.left) {
+      setMenuStyle({ top, left })
     }
   }, [menuOpenId, menuStyle])
 
@@ -155,23 +150,53 @@ export function ConversationList({
     if (!menuOpenId) return
     const close = (e: MouseEvent) => {
       const target = e.target as Node
-      if (menuRef.current?.contains(target) || menuDropdownRef.current?.contains(target)) return
+      if (menuDropdownRef.current?.contains(target) || chevronButtonRef.current?.contains(target)) return
       setMenuOpenId(null)
     }
     document.addEventListener('click', close)
     return () => document.removeEventListener('click', close)
   }, [menuOpenId])
 
+  const hasRowOptions = !!(onMuteConversation || onUnmuteConversation || onClearConversation)
+
+  const handleRowContextMenu = (e: React.MouseEvent, conversationId: string) => {
+    if (!hasRowOptions) return
+    e.preventDefault()
+    setMenuOpenId(conversationId)
+    setMenuStyle({ top: e.clientY, left: e.clientX })
+  }
+
+  const handleChevronClick = (e: React.MouseEvent, conversationId: string) => {
+    e.stopPropagation()
+    if (!hasRowOptions) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenuOpenId(conversationId)
+    setMenuStyle({ top: rect.bottom + 4, left: rect.left })
+  }
+
   const renderConversationRow = (conversation: Conversation) => {
     const isActive = currentChatId === conversation.id
-    const menuOpen = menuOpenId === conversation.id
+    const showChevron = hasRowOptions && (hoveredRowId === conversation.id || menuOpenId === conversation.id)
     return (
-      <li key={conversation.id} className="relative">
+      <li
+        key={conversation.id}
+        className="relative"
+        onMouseEnter={() => setHoveredRowId(conversation.id)}
+        onMouseLeave={() => setHoveredRowId(null)}
+      >
         <div className="flex w-full items-center gap-1.5">
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => onSelectConversation(conversation.id)}
-            className={`flex flex-1 min-w-0 items-center gap-3 px-3 py-3.5 text-left touch-manipulation rounded-[14px] transition-all duration-150 ${isActive ? 'bg-talkapp-panel border-talkapp-primary/20' : 'hover:bg-talkapp-panel/50'
+            onContextMenu={(e) => handleRowContextMenu(e, conversation.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelectConversation(conversation.id)
+              }
+            }}
+            className={`flex flex-1 min-w-0 items-center gap-3 px-3 py-2.5 text-left touch-manipulation rounded-[14px] transition-all duration-150 cursor-pointer ${isActive ? 'bg-talkapp-panel border-talkapp-primary/20' : 'hover:bg-talkapp-panel/50'
               }`}
           >
             {/* Avatar con estado */}
@@ -196,14 +221,28 @@ export function ConversationList({
                 <p className="font-semibold text-[0.9rem] text-talkapp-fg truncate min-w-0 flex-1">
                   {conversation.name}
                 </p>
-                <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+                <div className="relative flex flex-col items-end flex-shrink-0 gap-0.5 min-h-[2rem]">
                   {conversation.lastMessageTime != null && (
-                    <span className="text-[10px] text-talkapp-fg-muted font-medium">
+                    <span className="text-[10px] text-talkapp-fg-muted font-medium leading-tight">
                       {formatLastMessageTime(conversation.lastMessageTime)}
                     </span>
                   )}
                   {conversation.isMuted && (
-                    <MuteIcon className="w-3 h-3 text-talkapp-fg-muted" aria-hidden />
+                    <MuteIcon className="w-3 h-3 text-talkapp-fg-muted -mt-0.5" aria-hidden />
+                  )}
+                  {showChevron && (
+                    <button
+                      ref={menuOpenId === conversation.id ? chevronButtonRef : undefined}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleChevronClick(e, conversation.id)
+                      }}
+                      className="conversation-list-chevron absolute right-0 top-5 block p-0 w-3 h-3 text-talkapp-fg-muted/50 hover:text-talkapp-fg-muted"
+                      aria-label="Opciones"
+                    >
+                      <ChevronDownIcon className="w-full h-full" />
+                    </button>
                   )}
                 </div>
               </div>
@@ -217,7 +256,7 @@ export function ConversationList({
                       {currentUserId && conversation.lastMessageSenderId === currentUserId && (
                         <span className="flex-shrink-0 text-talkapp-fg-muted">
                           {conversation.lastMessageReadBy?.some((id) => id !== currentUserId) ? (
-                            <DoubleCheckIcon className="w-3.5 h-3.5 text-[#00C78C]" />
+                            <DoubleCheckIcon className="w-3.5 h-3.5 text-talkapp-primary" />
                           ) : conversation.lastMessageDeliveredBy?.some((id) => id !== currentUserId) ? (
                             <DoubleCheckIcon className="w-3.5 h-3.5 text-talkapp-fg-muted" />
                           ) : (
@@ -238,139 +277,140 @@ export function ConversationList({
                 )}
               </div>
             </div>
-          </button>
-
-          {(onMuteConversation || onUnmuteConversation || onClearConversation) && (
-            <div className="relative flex-shrink-0" ref={menuOpen ? menuRef : undefined}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setMenuOpenId(menuOpen ? null : conversation.id)
-                }}
-                className="rounded-lg p-1.5 text-talkapp-fg-muted/50 hover:text-talkapp-fg-muted hover:bg-talkapp-panel/80 transition-all"
-                aria-label="Opciones"
-              >
-                <DotsIcon />
-              </button>
-              {menuOpen && menuStyle && createPortal(
-                <div
-                  ref={menuDropdownRef}
-                  className="fixed z-[100] w-48 rounded-lg border border-talkapp-border bg-talkapp-sidebar py-1 shadow-xl"
-                  style={{ top: menuStyle.top, left: menuStyle.left }}
-                >
-                  {conversation.isMuted ? (
-                    onUnmuteConversation && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onUnmuteConversation(conversation.id)
-                          setMenuOpenId(null)
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel transition-colors"
-                      >
-                        <VolumeOnIcon className="h-4 w-4 shrink-0" />
-                        Activar sonido
-                      </button>
-                    )
-                  ) : (
-                    onMuteConversation && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onMuteConversation(conversation.id)
-                          setMenuOpenId(null)
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel transition-colors"
-                      >
-                        <MuteIcon className="h-4 w-4 shrink-0" />
-                        Silenciar
-                      </button>
-                    )
-                  )}
-                  {onClearConversation && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpenId(null)
-                        setClearConfirmConversationId(conversation.id)
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
-                    >
-                      <TrashRowIcon className="h-4 w-4 shrink-0" />
-                      Borrar conversación
-                    </button>
-                  )}
-                </div>,
-                document.body
-              )}
-            </div>
-          )}
+          </div>
         </div>
       </li>
     )
   }
 
+  const contextMenuConversation = menuOpenId ? conversations.find((c) => c.id === menuOpenId) : null
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      <header className="flex shrink-0 items-center gap-2 safe-t safe-l safe-r px-4 py-3">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="relative flex-shrink-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-talkapp-primary font-bold text-white text-base overflow-hidden">
-              {currentUserAvatar ? (
-                <img src={currentUserAvatar.startsWith('http') ? currentUserAvatar : `${env.apiUrl.replace(/\/$/, '')}${currentUserAvatar.startsWith('/') ? '' : '/'}${currentUserAvatar}`} alt="" className="w-full h-full object-cover" />
-              ) : (
-                currentUserName.charAt(0).toUpperCase()
-              )}
-            </div>
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-talkapp-sidebar" />
+      <header className="flex shrink-0 items-center justify-between gap-2 safe-t safe-l safe-r px-5 py-3 border-b border-talkapp-border/50">
+        <h1 className="font-bold text-xl tracking-tight text-talkapp-primary ml-5">TalkApp</h1>
+      </header>
+
+      <div className="chat-messages-scroll overscroll-behavior-contain flex-1 min-h-0 overflow-y-auto">
+        {conversationsLoading ? (
+          <div className="flex items-center justify-center p-6 text-talkapp-fg-muted text-sm">
+            Cargando conversaciones…
           </div>
-          <div className="min-w-0 flex-1 flex flex-col justify-center">
-            <span className="font-bold text-[0.95rem] tracking-tight">
-              <span className="text-talkapp-primary">TalkApp</span>
-            </span>
-            {onEditProfile ? (
-              <button type="button" onClick={onEditProfile} className="truncate block text-[0.72rem] text-talkapp-fg-muted hover:text-talkapp-primary text-left w-full transition-colors">
-                {currentUserName}
+        ) : conversations.length === 0 ? (
+          <div className="p-6 text-center text-talkapp-fg-muted/60 text-sm">
+            No hay conversaciones. Abre Contactos y inicia una conversación.
+          </div>
+        ) : (
+          <ul className="divide-y divide-transparent">
+            {conversations.map(renderConversationRow)}
+          </ul>
+        )}
+      </div>
+
+      {menuOpenId && menuStyle && contextMenuConversation && (onMuteConversation || onUnmuteConversation || onClearConversation) && createPortal(
+        <div
+          ref={menuDropdownRef}
+          className="fixed z-[100] w-48 rounded-lg border border-talkapp-border bg-talkapp-sidebar py-1 shadow-xl"
+          style={{ top: menuStyle.top, left: menuStyle.left }}
+        >
+          {contextMenuConversation.isMuted ? (
+            onUnmuteConversation && (
+              <button
+                type="button"
+                onClick={() => {
+                  onUnmuteConversation(contextMenuConversation.id)
+                  setMenuOpenId(null)
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel transition-colors"
+              >
+                <VolumeOnIcon className="h-4 w-4 shrink-0" />
+                Activar sonido
               </button>
+            )
+          ) : (
+            onMuteConversation && (
+              <button
+                type="button"
+                onClick={() => {
+                  onMuteConversation(contextMenuConversation.id)
+                  setMenuOpenId(null)
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel transition-colors"
+              >
+                <MuteIcon className="h-4 w-4 shrink-0" />
+                Silenciar
+              </button>
+            )
+          )}
+          {onClearConversation && (
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpenId(null)
+                setClearConfirmConversationId(contextMenuConversation.id)
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-talkapp-fg hover:bg-red-500/15 hover:text-red-400 transition-colors"
+            >
+              <TrashRowIcon className="h-4 w-4 shrink-0" />
+              Borrar conversación
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
+
+      <footer className="flex shrink-0 items-center gap-3 safe-b safe-l safe-r px-5 pt-3 pb-10 ml-5 min-h-[52px] box-border">
+        <div className="relative flex-shrink-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-talkapp-primary font-bold text-white text-base overflow-hidden">
+            {currentUserAvatar ? (
+              <img src={currentUserAvatar.startsWith('http') ? currentUserAvatar : `${env.apiUrl.replace(/\/$/, '')}${currentUserAvatar.startsWith('/') ? '' : '/'}${currentUserAvatar}`} alt="" className="w-full h-full object-cover" />
             ) : (
-              <p className="truncate text-[0.72rem] text-talkapp-fg-muted">{currentUserName}</p>
+              currentUserName.charAt(0).toUpperCase()
             )}
           </div>
+          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-talkapp-sidebar" />
         </div>
-        {onToggleTheme && (
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className="rounded-xl p-2 text-talkapp-fg-muted hover:bg-white/5 hover:text-talkapp-primary transition-colors"
-            title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
-            aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
-          >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        {onEditProfile ? (
+          <button type="button" onClick={onEditProfile} className="truncate flex-1 min-w-0 text-left text-sm text-talkapp-fg-muted hover:text-talkapp-primary transition-colors">
+            {currentUserName}
           </button>
+        ) : (
+          <p className="truncate flex-1 min-w-0 text-sm text-talkapp-fg-muted">{currentUserName}</p>
         )}
-        <div className="relative flex-shrink-0">
-          <button
-            ref={headerMenuRef}
-            type="button"
-            onClick={() => setHeaderMenuOpen((v) => !v)}
-            className="rounded-xl p-2 text-talkapp-fg-muted hover:bg-white/5 hover:text-talkapp-fg transition-colors"
-            title="Opciones"
-            aria-label="Opciones"
-          >
-            <DotsIcon />
-          </button>
+        <div className="flex items-center gap-0.5 flex-shrink-0 mr-3">
+          {onToggleTheme && (
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="rounded-xl p-2 text-talkapp-fg-muted hover:bg-white/5 hover:text-talkapp-primary transition-colors"
+              title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+              aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+            >
+              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            </button>
+          )}
+          <div className="relative">
+            <button
+              ref={footerMenuRef}
+              type="button"
+              onClick={() => setHeaderMenuOpen((v) => !v)}
+              className="rounded-xl p-2 text-talkapp-fg-muted hover:bg-white/5 hover:text-talkapp-fg transition-colors"
+              title="Opciones"
+              aria-label="Configuración"
+            >
+              <GearIcon />
+            </button>
           {headerMenuOpen && headerMenuStyle && createPortal(
             <div
               ref={headerMenuDropdownRef}
               className="fixed z-[100] w-52 rounded-lg border border-talkapp-border bg-talkapp-sidebar py-1 shadow-xl"
               style={{ top: headerMenuStyle.top, left: headerMenuStyle.left }}
             >
-              {onCreateGroup && (
+              {onOpenCreateGroup && (
                 <button
                   type="button"
                   onClick={() => {
-                    setShowCreateGroup(true)
+                    onOpenCreateGroup()
                     setHeaderMenuOpen(false)
                   }}
                   className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm text-talkapp-fg hover:bg-talkapp-panel"
@@ -408,31 +448,9 @@ export function ConversationList({
             </div>,
             document.body
           )}
+          </div>
         </div>
-      </header>
-
-      <div className="chat-messages-scroll overscroll-behavior-contain flex-1 min-h-0 overflow-y-auto">
-        {conversationsLoading ? (
-          <div className="flex items-center justify-center p-6 text-talkapp-fg-muted text-sm">
-            Cargando conversaciones…
-          </div>
-        ) : conversations.length === 0 ? (
-          <div className="p-6 text-center text-talkapp-fg-muted/60 text-sm">
-            No hay conversaciones. Abre Contactos y inicia una conversación.
-          </div>
-        ) : (
-          <ul className="divide-y divide-transparent">
-            {conversations.map(renderConversationRow)}
-          </ul>
-        )}
-      </div>
-
-      {showCreateGroup && onCreateGroup && (
-        <CreateConversationModal
-          onClose={() => setShowCreateGroup(false)}
-          onCreate={onCreateGroup}
-        />
-      )}
+      </footer>
 
       {clearConfirmConversationId && onClearConversation && (
         <ConfirmModal
@@ -453,12 +471,10 @@ export function ConversationList({
 
 /* --- Iconos stroke modernos --- */
 
-function DotsIcon() {
+function ChevronDownIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-      <circle cx="12" cy="5" r="1" fill="currentColor" />
-      <circle cx="12" cy="12" r="1" fill="currentColor" />
-      <circle cx="12" cy="19" r="1" fill="currentColor" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M6 9l6 6 6-6" />
     </svg>
   )
 }
@@ -544,6 +560,15 @@ function LogoutIcon() {
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  )
+}
+
+function GearIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   )
 }

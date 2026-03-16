@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from './context/AuthContext'
 import { useConversations } from './hooks/useConversations'
 import { useTheme } from './hooks/useTheme'
@@ -6,9 +6,10 @@ import { useBlocked } from './hooks/useBlocked'
 import { useOnlineUsers } from './hooks/useOnlineUsers'
 import { ToastProvider } from './context/ToastContext'
 import { AuthScreen } from './components/auth'
-import { ConversationList, ConversationView, EditProfileModal, ConfirmModal } from './components/conversations'
+import { ConversationList, ConversationView, EditProfilePanel, ConfirmModal, CreateGroupPanel, ManageGroupPanel } from './components/conversations'
 import { ContactsPanel } from './components/contacts'
 import { socket } from './lib/socket'
+import { startVideoCallRingtone } from './lib/videoCallRingtone'
 import { SOCKET_EVENTS } from './constants/socket'
 import { env } from './config/env'
 
@@ -61,9 +62,25 @@ function ChatLayout() {
     getIsConversationPanelVisible: () => mobileView === 'chat' || (typeof window !== 'undefined' && window.innerWidth >= 768),
   })
   const [showContactsPanel, setShowContactsPanel] = useState(false)
+  const [showCreateGroupPanel, setShowCreateGroupPanel] = useState(false)
   const [showEditProfile, setShowEditProfile] = useState(false)
+  const [showManageGroupPanel, setShowManageGroupPanel] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null)
+  const incomingCallRingStopRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => {
+    if (incomingCall) {
+      incomingCallRingStopRef.current = startVideoCallRingtone()
+    } else {
+      incomingCallRingStopRef.current?.()
+      incomingCallRingStopRef.current = null
+    }
+    return () => {
+      incomingCallRingStopRef.current?.()
+      incomingCallRingStopRef.current = null
+    }
+  }, [incomingCall])
 
   const openJitsi = useCallback((roomName: string) => {
     const safeName = roomName.replace(/[^a-zA-Z0-9-]/g, '') || `room-${Date.now()}`
@@ -91,8 +108,29 @@ function ChatLayout() {
     setMobileView('list')
   }
 
-  const handleOpenContacts = () => setShowContactsPanel(true)
+  const handleOpenContacts = () => {
+    setShowContactsPanel(true)
+    setShowCreateGroupPanel(false)
+  }
   const handleCloseContacts = () => setShowContactsPanel(false)
+  const handleOpenCreateGroup = () => {
+    setShowCreateGroupPanel(true)
+    setShowContactsPanel(false)
+  }
+  const handleCloseCreateGroup = () => setShowCreateGroupPanel(false)
+  const handleOpenEditProfile = () => {
+    setShowEditProfile(true)
+    setShowContactsPanel(false)
+    setShowCreateGroupPanel(false)
+  }
+  const handleCloseEditProfile = () => setShowEditProfile(false)
+  const handleOpenManageGroup = () => {
+    setShowManageGroupPanel(true)
+    setShowContactsPanel(false)
+    setShowCreateGroupPanel(false)
+    setShowEditProfile(false)
+  }
+  const handleCloseManageGroup = () => setShowManageGroupPanel(false)
 
   const handleOpenConversationWithContact = useCallback(
     (otherUserId: string) => {
@@ -125,11 +163,44 @@ function ChatLayout() {
     <div className="min-h-screen bg-talkapp-bg text-talkapp-fg p-1.5 sm:p-2 md:p-2.5">
       <div className="h-[calc(100vh-0.75rem)] sm:h-[calc(100vh-1rem)] md:h-[calc(100vh-1.25rem)] flex overflow-hidden rounded-lg border border-talkapp-border/60 shadow-lg">
       <aside
-        className={`flex flex-col w-full md:w-[380px] md:flex-shrink-0 md:border-r md:border-talkapp-border bg-talkapp-sidebar ${
+        className={`flex flex-col w-full md:w-[380px] md:flex-shrink-0 md:border-r md:border-talkapp-border bg-talkapp-sidebar min-h-0 pb-4 ${
           mobileView === 'chat' ? 'hidden md:flex' : 'flex'
         }`}
       >
-        {showContactsPanel ? (
+        {showEditProfile && user ? (
+          <EditProfilePanel
+            currentName={user.name}
+            currentNickname={user.nickname?.trim() ?? ''}
+            currentAvatar={user.avatar}
+            currentStatus={user.status}
+            onClose={handleCloseEditProfile}
+            onSave={async (updates) => {
+              await updateProfile({
+                nickname: updates.nickname || null,
+                avatar: updates.avatar !== undefined ? updates.avatar : undefined,
+                status: updates.status ?? null,
+              })
+              setShowEditProfile(false)
+            }}
+          />
+        ) : showManageGroupPanel && currentConversation && !currentConversation.otherUserId ? (
+          <ManageGroupPanel
+            conversation={currentConversation}
+            currentUserId={currentUserId}
+            onClose={handleCloseManageGroup}
+            onGroupUpdated={() => {
+              refreshConversations()
+            }}
+          />
+        ) : showCreateGroupPanel ? (
+          <CreateGroupPanel
+            onClose={handleCloseCreateGroup}
+            onCreate={async (name, participantIds, image) => {
+              await createGroupAndSelect(name, participantIds, image)
+              setShowCreateGroupPanel(false)
+            }}
+          />
+        ) : showContactsPanel ? (
           <ContactsPanel onOpenConversation={handleOpenConversationWithContact} onClose={handleCloseContacts} />
         ) : (
           <ConversationList
@@ -142,11 +213,11 @@ function ChatLayout() {
             typingByChatId={typingByChatId}
             onLogout={() => setShowLogoutConfirm(true)}
             onOpenContacts={handleOpenContacts}
-            onEditProfile={() => setShowEditProfile(true)}
+            onOpenCreateGroup={handleOpenCreateGroup}
+            onEditProfile={handleOpenEditProfile}
             conversationsLoading={conversationsLoading}
             onMuteConversation={muteConversation}
             onUnmuteConversation={unmuteConversation}
-            onCreateGroup={createGroupAndSelect}
             onClearConversation={clearConversation}
             theme={theme}
             onToggleTheme={toggleTheme}
@@ -174,6 +245,7 @@ function ChatLayout() {
           onDeleteMessage={deleteMessage}
           onClearConversation={clearConversation}
           onGroupUpdated={refreshConversations}
+          onOpenManageGroup={handleOpenManageGroup}
           currentUserName={displayName}
           currentUserAvatar={user?.avatar}
         />
@@ -192,28 +264,22 @@ function ChatLayout() {
           onCancel={() => setShowLogoutConfirm(false)}
         />
       )}
-      {showEditProfile && user && (
-        <EditProfileModal
-          currentName={user.name}
-          currentNickname={user.nickname?.trim() ?? ''}
-          currentAvatar={user.avatar}
-          currentStatus={user.status}
-          onClose={() => setShowEditProfile(false)}
-          onSave={async (updates) => updateProfile({ nickname: updates.nickname || null, avatar: updates.avatar !== undefined ? updates.avatar : undefined, status: updates.status ?? null })}
-        />
-      )}
       {!connected && (
-        <div className="fixed bottom-4 right-4 px-3 py-2 rounded-lg bg-amber-600/90 text-white text-sm z-20 safe-b safe-r max-w-[calc(100vw-2rem)]">
-          Reconectando…
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-20 safe-t flex items-center gap-2 px-4 py-2.5 rounded-full bg-talkapp-sidebar border border-talkapp-border shadow-lg text-talkapp-fg text-sm font-medium">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+          </span>
+          Conectando…
         </div>
       )}
 
       {incomingCall && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 safe-t safe-b safe-l safe-r">
-          <div className="w-full max-w-sm max-h-[90dvh] flex flex-col rounded-2xl bg-talkapp-sidebar border border-talkapp-border shadow-2xl overflow-hidden">
-            <div className="p-6 pb-4 text-center">
-              <div className="relative inline-block mb-4">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-talkapp-panel border-4 border-talkapp-primary/50 flex items-center justify-center ring-4 ring-talkapp-primary/20">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 safe-t safe-b safe-l safe-r bg-talkapp-bg/95 backdrop-blur-md">
+          <div className="w-full max-w-[340px] flex flex-col rounded-[28px] overflow-hidden shadow-2xl border border-talkapp-border/60 bg-talkapp-sidebar">
+            <div className="relative pt-10 pb-6 px-6 text-center bg-gradient-to-b from-talkapp-primary/10 to-transparent">
+              <div className="relative inline-block">
+                <div className="w-32 h-32 rounded-full overflow-hidden flex items-center justify-center bg-talkapp-panel/80 ring-4 ring-talkapp-primary/30 ring-offset-4 ring-offset-talkapp-sidebar">
                   {incomingCall.callerAvatar ? (
                     <img
                       src={fullAvatarUrl(incomingCall.callerAvatar)}
@@ -221,25 +287,25 @@ function ChatLayout() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-4xl text-slate-500">👤</span>
+                    <VideoCallAvatarPlaceholderIcon className="w-16 h-16 text-talkapp-primary/50" />
                   )}
                 </div>
-                <span className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-talkapp-primary text-talkapp-on-primary">
-                  <VideoCallRingingIcon className="h-3.5 w-3.5" />
+                <span className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-talkapp-primary text-talkapp-on-primary shadow-lg border-2 border-talkapp-sidebar">
+                  <VideoCallRingingIcon className="h-5 w-5" />
                 </span>
               </div>
-              <p className="text-talkapp-fg-muted text-sm font-medium">Videollamada entrante</p>
-              <p className="text-talkapp-fg text-xl font-semibold mt-1">{incomingCall.callerName}</p>
-              <p className="text-talkapp-primary text-sm mt-0.5">te está llamando</p>
+              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-talkapp-primary/90">Videollamada entrante</p>
+              <p className="text-talkapp-fg text-2xl font-bold mt-1.5 tracking-tight">{incomingCall.callerName}</p>
+              <p className="text-talkapp-fg-muted text-sm mt-1">te está llamando</p>
             </div>
-            <div className="flex gap-3 p-4 pt-0">
+            <div className="flex gap-3 p-5 pt-2 bg-talkapp-sidebar">
               <button
                 type="button"
                 onClick={() => {
                   socket.emit(SOCKET_EVENTS.VIDEO_CALL_REJECT, { callerId: incomingCall.callerId })
                   setIncomingCall(null)
                 }}
-                className="flex-1 rounded-xl py-3.5 bg-red-600 text-white font-semibold hover:bg-red-500 active:opacity-90 transition-colors"
+                className="flex-1 rounded-xl py-3.5 bg-red-500 text-white font-semibold hover:bg-red-400 active:opacity-90 transition-colors"
               >
                 Rechazar
               </button>
@@ -266,6 +332,16 @@ function ChatLayout() {
   )
 }
 
+function VideoCallAvatarPlaceholderIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="9" r="3" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+    </svg>
+  )
+}
+
 function VideoCallRingingIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -275,7 +351,7 @@ function VideoCallRingingIcon({ className }: { className?: string }) {
 }
 
 function App() {
-  const { user, loading } = useAuth()
+  const { user, loading, token } = useAuth()
 
   if (loading) {
     return (
@@ -285,7 +361,7 @@ function App() {
     )
   }
 
-  if (!user) {
+  if (!user || !token) {
     return <AuthScreen />
   }
 
