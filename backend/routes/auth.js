@@ -129,6 +129,12 @@ router.post('/reset-password', async (req, res) => {
     if (!user) {
       return res.status(400).json({ error: 'Enlace inválido o expirado. Solicita uno nuevo.' });
     }
+    const sameAsCurrent = await user.comparePassword(passwordStr);
+    if (sameAsCurrent) {
+      return res.status(400).json({
+        error: 'La nueva contraseña no puede ser la misma que la anterior. Elige otra distinta.',
+      });
+    }
     user.password = passwordStr;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;

@@ -13,6 +13,7 @@ module.exports = {
   },
   email: {
     from: process.env.EMAIL_FROM || 'TalkApp <noreply@talkapp.local>',
+    resendApiKey: process.env.RESEND_API_KEY || '',
     smtpHost: process.env.SMTP_HOST,
     smtpPort: Number(process.env.SMTP_PORT) || 587,
     smtpUser: process.env.SMTP_USER,

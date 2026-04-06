@@ -25,7 +25,7 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     const image = /^image\/(jpeg|png|gif|webp)$/i.test(file.mimetype);
     const pdf = file.mimetype === 'application/pdf';
-    const audio = /^audio\/(mpeg|webm|ogg|mp4|wav|aac)$/i.test(file.mimetype);
+    const audio = /^audio\/(mpeg|mp3|webm|ogg|mp4|wav|aac|x-m4a|x-wav)$/i.test(file.mimetype);
     if (image || pdf || audio) cb(null, true);
     else cb(new Error('Solo imágenes, PDF o audio permitidos'));
   },

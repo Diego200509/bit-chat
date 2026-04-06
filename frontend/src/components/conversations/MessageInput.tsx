@@ -4,6 +4,17 @@ import * as api from '../../lib/api'
 const TYPING_DEBOUNCE_MS = 400
 const STOP_TYPING_DELAY_MS = 2000
 
+const IMAGE_MIME = /^image\/(jpeg|png|gif|webp)$/i
+const AUDIO_MIME = /^audio\/(mpeg|mp3|webm|ogg|mp4|wav|aac|x-m4a|x-wav)$/i
+
+function isImageFile(file: File): boolean {
+  return IMAGE_MIME.test(file.type)
+}
+
+function isAudioFile(file: File): boolean {
+  return AUDIO_MIME.test(file.type)
+}
+
 interface MessageInputProps {
   onSend: (text: string) => void
   onSendImage?: (url: string) => void
@@ -51,14 +62,22 @@ export function MessageInput({
     setText('')
   }
 
-  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onAttachmentChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (!file || !onSendImage) return
+    if (!file) return
+    const canImage = !!onSendImage && isImageFile(file)
+    const canAudio = !!onSendVoice && isAudioFile(file)
+    if (!canImage && !canAudio) return
     setUploading(true)
     try {
-      const url = await api.uploadImage(file)
-      onSendImage(url)
+      if (canImage) {
+        const url = await api.uploadImage(file)
+        onSendImage!(url)
+      } else {
+        const url = await api.uploadFile(file)
+        onSendVoice!(url)
+      }
     } catch {} finally {
       setUploading(false)
     }
@@ -115,9 +134,9 @@ export function MessageInput({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
+          accept="image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/mp3,audio/webm,audio/ogg,audio/mp4,audio/wav,audio/aac,audio/x-m4a,audio/x-wav"
           className="hidden"
-          onChange={onFileChange}
+          onChange={onAttachmentChange}
         />
         <input
           ref={documentInputRef}
@@ -126,14 +145,14 @@ export function MessageInput({
           className="hidden"
           onChange={onDocumentChange}
         />
-        {onSendImage && (
+        {(onSendImage || onSendVoice) && (
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled || uploading}
             className="rounded-full p-2 text-talkapp-fg-muted hover:text-talkapp-primary transition-colors disabled:opacity-40"
-            aria-label="Adjuntar imagen"
-            title="Adjuntar imagen"
+            aria-label="Adjuntar imagen o audio"
+            title="Adjuntar imagen o audio"
           >
             {uploading ? <SpinnerIcon /> : <AttachIcon />}
           </button>
